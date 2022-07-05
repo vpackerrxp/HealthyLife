@@ -1,0 +1,27 @@
+{
+  "id": "642aceb2-85ff-4756-a2d1-bb44eb6f4f3c",
+  "name": "HealthyLife",
+  "publisher": "RXP Services",
+  "version": "1.2.5.3",
+  "brief": "Designed by V.Packer Practiva Pty Ltd",
+  "description": "Extension to accomodate Healthy Life specific requirements",
+  "privacyStatement": "",
+  "EULA": "",
+  "help": "",
+  "url": "",
+  "logo": "",
+  "dependencies": [],
+  "screenshots": [],
+  "platform": "20.0.0.0",
+  "application": "20.0.0.0",
+  "idRanges": 
+  [
+    {
+      "from": 80000,
+      "to": 80100
+    }
+  ],
+  "contextSensitiveHelpUrl": "https://HealthyLife.com/help/",
+  "resourceExposurePolicy": {"allowDebugging": true,"allowDownloadingSource": true},
+  "runtime": "9.0"
+}

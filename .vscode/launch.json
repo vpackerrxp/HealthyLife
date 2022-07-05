@@ -1,0 +1,47 @@
+{
+    "version": "0.2.0",
+    "configurations": 
+    [
+        {
+            "name": "snapshotInitialize: Microsoft production cloud",
+            "type": "al",
+            "request": "snapshotInitialize",
+            "environmentType": "Production",
+            "environmentName": "production",
+            "breakOnNext": "WebClient",
+            "executionContext": "Debug"
+        },
+         {
+            "name": "HLDev",
+            "type": "al",
+            "request": "launch",
+            "environmentType": "Sandbox",
+            "environmentName": "HLDev",
+            "startupObjectId": 31,
+            "breakOnError": true,
+            "breakOnRecordWrite": false,
+            "launchBrowser": true,
+            "schemaUpdateMode": "ForceSync",
+            "enableSqlInformationDebugger": true,
+            "enableLongRunningSqlStatements": true,
+            "longRunningSqlStatementsThreshold": 500,
+            "numberOfSqlStatements": 10
+        },
+        {
+            "name": "HLTest",
+            "type": "al",
+            "request": "launch",
+            "environmentType": "Sandbox",
+            "environmentName": "HLTest",
+            "startupObjectId": 31,
+            "breakOnError": true,
+            "breakOnRecordWrite": false,
+            "launchBrowser": true,
+            "schemaUpdateMode": "ForceSync",
+            "enableSqlInformationDebugger": true,
+            "enableLongRunningSqlStatements": true,
+            "longRunningSqlStatementsThreshold": 500,
+            "numberOfSqlStatements": 10
+        }
+    ]
+}

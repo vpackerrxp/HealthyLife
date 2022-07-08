@@ -9,6 +9,14 @@ pageextension 80007 "HL Vendor Card Ext" extends "Vendor Card"
             ApplicationArea = All;
             Caption = 'Accounts E-Mail'; 
         }
+        addafter("Home Page")
+        {
+            field("Woolworths Vendor No.";rec."Woolworths Vendor No.")
+            {
+                Caption = 'Woolworths Vendor No';
+                ApplicationArea = All;
+            }
+        }
         addafter("E-Mail")
         {
             field("Sales E-Mail"; rec."Sales E-Mail")

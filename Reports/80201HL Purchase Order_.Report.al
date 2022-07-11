@@ -1,4 +1,4 @@
-report 80201 "PC Purchase Order"
+report 80201 "HL Purchase Order"
 {
     DefaultLayout = RDLC;
     RDLCLayout = 'Report\PurchaseOrder.rdl';

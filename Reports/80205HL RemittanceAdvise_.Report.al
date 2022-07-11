@@ -1,4 +1,4 @@
-report 80205 "Rep80205.PCRemittanceAdvise"
+report 80205 "HL RemittanceAdvise"
 {
     DefaultLayout = RDLC;
     RDLCLayout = 'report\RemittanceAdviceEntries.rdl';

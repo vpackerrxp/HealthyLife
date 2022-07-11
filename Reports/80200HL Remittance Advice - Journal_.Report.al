@@ -1,4 +1,4 @@
-report 80200 "PC Remittance Advice - Journal"
+report 80200 "HL Remittance Advice - Journal"
 {
     DefaultLayout = RDLC;
     RDLCLayout = 'Report\HLRemittanceAdviseJournal.rdl';

@@ -1,4 +1,4 @@
-report 80206 "Rep80206.PCRemittanceAdvise"
+report 80206 "HL RemittanceAdvise Body"
 {
     DefaultLayout = Word;
     Caption = 'Remittance Advice Email Body - Entries';

@@ -1,4 +1,4 @@
-report 80204 "PC Sales Invoice"
+report 80204 "HL Sales Invoice"
 {
     DefaultLayout = RDLC;
     RDLCLayout = 'report\SalesInvoice.rdl';

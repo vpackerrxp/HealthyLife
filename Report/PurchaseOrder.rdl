@@ -5429,7 +5429,7 @@ Cstr(Fields!Requested_Receipt_Date.Value)
                 <Paragraph>
                   <TextRuns>
                     <TextRun>
-                      <Value>=Code.GetData(53,1)</Value>
+                      <Value EvaluationMode="Constant">Email</Value>
                       <Style>
                         <FontStyle>Normal</FontStyle>
                         <FontFamily>Segoe UI</FontFamily>
@@ -5443,7 +5443,7 @@ Cstr(Fields!Requested_Receipt_Date.Value)
               <Top>113.5pt</Top>
               <Left>11.02666cm</Left>
               <Height>11pt</Height>
-              <Width>2.28174cm</Width>
+              <Width>0.91319cm</Width>
               <ZIndex>17</ZIndex>
               <Style>
                 <VerticalAlign>Middle</VerticalAlign>
@@ -5469,9 +5469,9 @@ Cstr(Fields!Requested_Receipt_Date.Value)
                 </Paragraph>
               </Paragraphs>
               <Top>113.5pt</Top>
-              <Left>13.49559cm</Left>
+              <Left>12.37146cm</Left>
               <Height>11pt</Height>
-              <Width>4.29922cm</Width>
+              <Width>5.42335cm</Width>
               <ZIndex>18</ZIndex>
               <Style>
                 <VerticalAlign>Middle</VerticalAlign>

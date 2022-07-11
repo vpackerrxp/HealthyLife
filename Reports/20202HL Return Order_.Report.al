@@ -1,4 +1,4 @@
-report 80202 "PC Return Order"
+report 80202 "HL Return Order"
 {
     DefaultLayout = RDLC;
     RDLCLayout = 'Report\ReturnOrder.rdl';

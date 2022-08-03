@@ -1326,7 +1326,7 @@ codeunit 80000 "HL Shopify Routines"
     end;     
     // simple routine to access the corect price for SKU's in Shopify
     [TryFunction]
-    local procedure Update_Order_Locations(OrdId:BigInteger)
+    procedure Update_Order_Locations(OrdId:BigInteger)
     var
         //Loc:record Location;
         OrdHdr:record "HL Shopify Order Header";
@@ -1547,45 +1547,56 @@ codeunit 80000 "HL Shopify Routines"
                         For i := 1 to XMLNodeLst[1].Count do
                         begin
                             Clear(ErrFlg);
+                            Clear(SKU);
+                            Clear(Qty);
                             XmlNodeLst[1].Get(i,CurrNode[1]);
                             if CUXml.FindNode(CurrNode[1],'Code',CurrNode[2]) then
                                 SKU := CurrNode[2].AsXmlElement().InnerText
                             else
-                                ErrFlg := true;    
-                            if CUXml.FindNode(CurrNode[1],'Quantity',CurrNode[2]) then
-                                If Not Evaluate(Qty,CurrNode[2].AsXmlElement().InnerText) then
-                                    ErrFlg := True;
-                            if CUXml.FindNode(CurrNode[1],'SourceOrderItemUniqueIdentifier',CurrNode[2]) then
-                                If Not evaluate(lineID,CurrNode[2].AsXmlElement().InnerText) then
-                                    If OrdLine[1]."Bundle Item No." <> '' then
-                                        lineID := OrdLine[1]."Order Line ID"
-                                    else
+                                ErrFlg := true;
+                            if Not ErrFlg then        
+                                if CUXml.FindNode(CurrNode[1],'Quantity',CurrNode[2]) then
+                                    If Not Evaluate(Qty,CurrNode[2].AsXmlElement().InnerText) then
                                         ErrFlg := True;
-                            if CUXml.FindNode(CurrNode[1],'BatchAndExpiryList',CurrNode[2]) and Not Errflg then
-                                if CurrNode[2].AsXmlElement().SelectNodes('BatchAndExpiry',xmlNodeLst[2]) then
-                                begin
-                                    Clear(BatchList);
-                                    For j := 1 to XMLNodeLst[2].Count do
+                            If Not ErrFlg then            
+                                if CUXml.FindNode(CurrNode[1],'SourceOrderItemUniqueIdentifier',CurrNode[2]) then
+                                    If Not evaluate(lineID,CurrNode[2].AsXmlElement().InnerText) then
                                     begin
-                                        Clear(BatInfo);
-                                        XmlNodeLst[2].Get(j,CurrNode[1]);
-                                        If CUXml.FindNode(CurrNode[1],'BatchNumber',CurrNode[2]) then
-                                            If Strlen(CurrNode[2].AsXmlElement().InnerText) > 0 then
-                                            begin
-                                                Batinfo[1] := CurrNode[2].AsXmlElement().InnerText + ',';
-                                                if CUXml.FindNode(CurrNode[1],'ExpiryDate',CurrNode[2]) then
-                                                    Batinfo[1] += CurrNode[2].AsXmlElement().InnerText + ',';
-                                                If BatchList.ContainsKey(SKU) then
-                                                begin
-                                                    BatchList.get(SKU,BatInfo[2]);
-                                                    BatchList.Set(SKU,BatInfo[1] + BatInfo[2]);    
-                                                end
-                                                else
-                                                    BatchList.Add(SKU,BatInfo[1]);
-                                                If BatchList.get(SKU,BatInfo[1]) then BatchList.Set(SKU,BatInfo[1].Remove(BatInfo[1].LastIndexOf(','),1));
-                                            end;        
+                                        OrdLine[1].Reset;
+                                        Ordline[1].SetRange(ShopifyID,OrdHdr.ID);
+                                        Ordline[1].Setrange("Item No.",SKU);
+                                        OrdLine[1].SetFilter("Bundle Item No.",'<>%1','');
+                                        If OrdLine[1].findset then
+                                            lineID := OrdLine[1]."Order Line ID"
+                                        else
+                                            ErrFlg := True;
                                     end;
-                                end;
+                            if not ErrFlg then                        
+                                if CUXml.FindNode(CurrNode[1],'BatchAndExpiryList',CurrNode[2]) and Not Errflg then
+                                    if CurrNode[2].AsXmlElement().SelectNodes('BatchAndExpiry',xmlNodeLst[2]) then
+                                    begin
+                                        Clear(BatchList);
+                                        For j := 1 to XMLNodeLst[2].Count do
+                                        begin
+                                            Clear(BatInfo);
+                                            XmlNodeLst[2].Get(j,CurrNode[1]);
+                                            If CUXml.FindNode(CurrNode[1],'BatchNumber',CurrNode[2]) then
+                                                If Strlen(CurrNode[2].AsXmlElement().InnerText) > 0 then
+                                                begin
+                                                    Batinfo[1] := CurrNode[2].AsXmlElement().InnerText + ',';
+                                                    if CUXml.FindNode(CurrNode[1],'ExpiryDate',CurrNode[2]) then
+                                                        Batinfo[1] += CurrNode[2].AsXmlElement().InnerText + ',';
+                                                    If BatchList.ContainsKey(SKU) then
+                                                    begin
+                                                        BatchList.get(SKU,BatInfo[2]);
+                                                        BatchList.Set(SKU,BatInfo[1] + BatInfo[2]);    
+                                                    end
+                                                    else
+                                                        BatchList.Add(SKU,BatInfo[1]);
+                                                    If BatchList.get(SKU,BatInfo[1]) then BatchList.Set(SKU,BatInfo[1].Remove(BatInfo[1].LastIndexOf(','),1));
+                                                end;        
+                                        end;
+                                    end;
                             If Not ErrFlg and (Qty > 0) then
                             begin
                                 Clear(flg); 

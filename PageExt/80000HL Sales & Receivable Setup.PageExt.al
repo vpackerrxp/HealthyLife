@@ -410,18 +410,20 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                 trigger OnAction()
                 var
                     Item:record Item;
+                    BI:BigInteger;
 
                    //Cu:Codeunit "Cryptography Management";
                    //HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
-                   //Cu:Codeunit "HL Shopify Routines";
+                   Cu:Codeunit "HL Shopify Routines";
                    //Cu:Codeunit "HL NPF Routines";
                    //cu:Codeunit "HL Shopify Routines";
                     //Shp:record "HL Shopify Order Header";
                     val:BigInteger;
-                    CU:Codeunit Test;
+                    //CU:Codeunit Test;
                 begin
                     //Cu.Get_Shopify_Orders(0);
-                    Cu.Testrun();
+                    Cu.Update_Order_Locations(278041);
+                    //Cu.Testrun();
                     //CU.Fix_Refunds();
                     //CU.Process_Refunds();
                    /* Shp.Reset;

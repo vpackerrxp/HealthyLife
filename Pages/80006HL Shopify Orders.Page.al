@@ -460,7 +460,8 @@ page 80006 "HL Shopify Orders"
                                     Excp.Reset;
                                     Excp.Setrange(ShopifyID, rec.ID);
                                     If Excp.Findset then Excp.Deleteall;
-                                    If Sel = 1 then 
+                                    If Sel = 1 then
+                                       // Cu.Update_Order_Locations(Rec.ID)
                                         Cu.Process_Orders(false, Rec.ID)
                                     else    
                                         Cu.Process_Orders(true, Rec.ID);
@@ -543,8 +544,8 @@ page 80006 "HL Shopify Orders"
                         Excp: Record "HL Shopify Order exceptions";
                         Sel:Integer;
                      begin
-                        If Proc <> '*' then 
-                        begin
+                        //If Proc <> '*' then 
+                        //begin
                             if Confirm('Attempt to reprocess this order Now', True) then 
                             begin
                                 Sel := StrMenu('Via NPF Check,ByPass NPF Check',1);
@@ -565,7 +566,7 @@ page 80006 "HL Shopify Orders"
                                 end;    
                             end;
                             SetFilters();
-                        end;
+                        //end;
                     end;
                 }
             }

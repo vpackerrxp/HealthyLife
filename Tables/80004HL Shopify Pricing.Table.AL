@@ -104,6 +104,21 @@ table 80004 "HL Shopfiy Pricing"
                     error('Invalid Ending Date');
             end;        
         }
+        field(170;"Promotion Entry";Boolean)
+        {
+            Editable = false;
+        }
+        field(180;"Promotion Period";Integer)
+        {
+            Editable = false;
+        }
+        field(190;"Promotion Code";Code[30])
+        {
+            Editable = false;
+        }
+
+
+
     }
     keys
     {

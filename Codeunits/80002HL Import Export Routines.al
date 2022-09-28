@@ -175,7 +175,7 @@ Codeunit 80002 "HL Import Export Routines"
                         If SkipCnt > 1 then begin
                             If StrLen(data) > 0 then begin
                                 Flds := data.Split(',');
-                                if Flds.Count = 40 then begin
+                                if Flds.Count = 41 then begin
                                     Clear(ChgFlg);
                                     If Not Item.Get(CopyStr(Flds.Get(1).ToUpper(), 1, 20)) then begin
                                         Item.init;
@@ -380,45 +380,52 @@ Codeunit 80002 "HL Import Export Routines"
                                             end;
                                         end;
                                         Item."Costing Method" := Item."Costing Method"::Average;
-                                        If Not Gp.get(Flds.get(23).ToUpper()) then
-                                        Error(StrSubStno('General Product Posting Group %1 does not exist for Item %2', Flds.get(23).ToUpper(), Item."No."));
-                                        Item.Validate("Gen. Prod. Posting Group", Flds.get(23).ToUpper());
-                                        VAT := Flds.get(24).ToUpper();
+                                        If Flds.Get(23) = '' then
+                                            UnitCst := 0
+                                        else
+                                            If Not Evaluate(UnitCst, Flds.Get(23)) then
+                                                error(StrsubStno('Invalid Rebate Wholesale Cost for Item %1', Item."No."));
+                                        Item.Validate("Rebate Wholesale Cost",UnitCst);    
+                                        If Not Gp.get(Flds.get(24).ToUpper()) then
+                                            Error(StrSubStno('General Product Posting Group %1 does not exist for Item %2', Flds.get(24).ToUpper(), Item."No."));
+                                        Item.Validate("Gen. Prod. Posting Group", Flds.get(24).ToUpper());
+                                        VAT := Flds.get(25).ToUpper();
                                         If VAT = '' then VAT := 'GST10';
                                         If Not VP.get(VAT) then
                                             Error(StrSubStno('GST Product Posting Group %1 does not exist for Item %2', VAT, Item."No."));
                                         Item.Validate("VAT Prod. Posting Group", VAT);
-                                        If Copystr(Flds.get(25), 1, 14).Toupper().Contains('E+') then
-                                            Error(StrSubStno('GTIN %1 is invalid check excel auto number format for Item %2',CopyStr(Flds.get(25), 1, 14),Item."No."));
-                                        Item.validate(GTIN,Copystr(Flds.get(25),1,14));
-                                        Item.Validate("Item Category Code", CopyStr(Flds.get(26), 1, 20));
-                                        Item.Validate("Product Code", Copystr(Flds.Get(30), 1, 30));
-                                        Item.Validate(Brand, Copystr(Flds.Get(31), 1, 30));
-                                        If Flds.Get(32).ToUpper() = 'YES' then
+                                        If Copystr(Flds.get(26), 1, 14).Toupper().Contains('E+') then
+                                            Error(StrSubStno('GTIN %1 is invalid check excel auto number format for Item %2',CopyStr(Flds.get(26), 1, 14),Item."No."));
+                                        Item.validate(GTIN,Copystr(Flds.get(26),1,14));
+                                        Item.Validate("Item Category Code", CopyStr(Flds.get(27), 1, 20));
+                                        Item.Validate("Product Code", Copystr(Flds.Get(31), 1, 30));
+                                        Item.Validate(Brand, Copystr(Flds.Get(32), 1, 30));
+                                        If Flds.Get(33).ToUpper() = 'YES' then
                                             Item."Auto Delivery" := true
                                         else
                                             Item."Auto Delivery" := false;
                                     end;    
                                     If (Flds.Get(15).ToUpper() = 'PARENT') Or (Flds.Get(15).ToUpper() = '') then begin
-                                        If Flds.Get(27) = '' then
+                                        If Flds.Get(28) = '' then
                                             Error(Strsubstno('Parent/Standalone items must have a Shopify Title for Item %1', Item."No."))
                                         else
-                                            Item.Validate("Shopify Title", Copystr(Flds.Get(27), 1, 100));
+                                            Item.Validate("Shopify Title", Copystr(Flds.Get(28), 1, 100));
                                     end;
                                     If (Flds.Get(15).ToUpper() = 'CHILD') Or (Flds.Get(15).ToUpper() = '') then begin
-                                        if Flds.Get(28) = '' then
+                                        if Flds.Get(29) = '' then
                                             Error(StrSubstNo('Child/Standalone items must have a Shopify Selling Option 1 for Item %1', Item."No."))
                                         else
-                                            Item.Validate("Shopify Selling Option 1", Copystr(Flds.Get(28), 1, 50));
-                                        If Evaluate(GSTFlg,Flds.Get(29)) then    
+                                            Item.Validate("Shopify Selling Option 1", Copystr(Flds.Get(29), 1, 50));
+                                        If Evaluate(GSTFlg,Flds.Get(30)) then    
                                             Item.Validate("Price Includes VAT",GSTFlg);
                                     end;
                                     Item."Shopify Item" := Item."Shopify Item"::Shopify;
-                                    Dimval := CopyStr(Flds.Get(33).ToUpper(), 1, 20);
+                                    Dimval := CopyStr(Flds.Get(34).ToUpper(), 1, 20);
                                     If Dimval <> '' then begin
                                         If Not Dim.Get('DEPARTMENT', Dimval) then
                                             Error(StrsubStno('DEPARTMENT %1 does not exist as a dimenion value for item %2', DimVal, Item."No."));
-                                        If DefDim.Get(DATABASE::Item, Item."No.", 'DEPARTMENT') then begin
+                                        If DefDim.Get(DATABASE::Item, Item."No.", 'DEPARTMENT') then 
+                                        begin
                                             Defdim.validate("Dimension Value Code", DimVal);
                                             DefDim.modify;
                                         end
@@ -430,8 +437,10 @@ Codeunit 80002 "HL Import Export Routines"
                                             DefDim."Dimension Value Code" := DimVal;
                                             DefDim.insert;
                                         end;
+                                        If Dim.Get(DefDim."Dimension Code",DefDim."Dimension Value Code") then
+                                            Item."Shopify Category Name" := Dim.Name;
                                     end;
-                                    DimVal := CopyStr(Flds.Get(34).ToUpper(), 1, 20);
+                                    DimVal := CopyStr(Flds.Get(35).ToUpper(), 1, 20);
                                     If DimVal <> '' then begin
                                         If Not Dim.Get('CATEGORY', DimVal) then
                                             Error(StrsubStno('CATEGORY %1 does not exist as a dimenion value for Item %2', DimVal, Item."No."));
@@ -449,7 +458,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             DefDim.insert;
                                         end;
                                     end;
-                                    Dimval := CopyStr(Flds.Get(35).ToUpper(), 1, 20);
+                                    Dimval := CopyStr(Flds.Get(36).ToUpper(), 1, 20);
                                     If DimVal <> '' then begin
                                         If Not Dim.Get('SUB-CATEGORY', DimVal) then
                                             Error(StrsubStno('SUB-CATEGORY %1 does not exist as a dimension value for Item %2', DimVal, Item."No."));
@@ -467,7 +476,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             DefDim.insert;
                                         end;
                                     end;
-                                    Dimval := CopyStr(Flds.Get(36).ToUpper(), 1, 20);
+                                    Dimval := CopyStr(Flds.Get(37).ToUpper(), 1, 20);
                                     If DimVal <> '' then begin
                                         If Not Dim.Get('BRAND', DimVal) then begin
                                             Dim.Init();
@@ -489,7 +498,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             DefDim.insert;
                                         end;
                                     end;
-                                    UOM := CopyStr(Flds.Get(37).ToUpper(), 1, 10);
+                                    UOM := CopyStr(Flds.Get(38).ToUpper(), 1, 10);
                                     If UOM <> '' then begin
                                         if Not unit.Get(UOM) then begin
                                             Unit.Init();
@@ -499,10 +508,10 @@ Codeunit 80002 "HL Import Export Routines"
                                             Commit;
                                         end;
                                     end;
-                                    If Flds.Get(38) = '' then
+                                    If Flds.Get(39) = '' then
                                         QtyPer := 0
                                     else
-                                        if Not Evaluate(QtyPer, Flds.Get(38)) then
+                                        if Not Evaluate(QtyPer, Flds.Get(39)) then
                                             Error(StrSubstNo('Numeric value expected for Item %1', Item."No."));
                                     If (UOM <> '') then begin
                                         If QtyPer > 0 then begin
@@ -534,7 +543,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             end;
                                         end;
                                     end;
-                                    UOM := CopyStr(Flds.Get(39).ToUpper(), 1, 10);
+                                    UOM := CopyStr(Flds.Get(40).ToUpper(), 1, 10);
                                     If UOM <> '' then begin
                                         if Not unit.Get(UOM) then begin
                                             Unit.Init();
@@ -544,10 +553,10 @@ Codeunit 80002 "HL Import Export Routines"
                                             Commit;
                                         end;
                                     end;
-                                    If Flds.Get(40) = '' then
+                                    If Flds.Get(41) = '' then
                                         QtyPer := 0
                                     else
-                                        if Not Evaluate(QtyPer, Flds.Get(40)) then
+                                        if Not Evaluate(QtyPer, Flds.Get(41)) then
                                             Error(StrSubstNo('Numeric value expected for Item %1', Item."No."));
                                     If (UOM <> '') then begin
                                         If QtyPer > 0 then begin
@@ -593,7 +602,7 @@ Codeunit 80002 "HL Import Export Routines"
                                    Item.Modify();
                                 end
                                 else
-                                    Error(StrSubstNo('Field Count Does Not = 40 .. occured at Line Position %1 check for extra commas in the data', SkipCnt));
+                                    Error(StrSubstNo('Field Count Does Not = 41 .. occured at Line Position %1 check for extra commas in the data', SkipCnt));
                             end;
                         end;
                     end;
@@ -661,7 +670,7 @@ Codeunit 80002 "HL Import Export Routines"
                                     + ',Storage Method Type,Storage Nominal Temperature,Storage Temperature Tolerance' 
                                     + ',Picking Sequence,HS Code,Type,Inventory Posting Group'
                                     + ',RRP,Selling Price,Vendor No.,Vendor Type,Vendor Item No.'
-                                    + ',Unit Cost,Gen. Prod. Posting Group,GST Prod. Posting Group,GTIN,Item Category Code,Shopify Title'
+                                    + ',Unit Cost,Rebate Wholesale Cost,Gen. Prod. Posting Group,GST Prod. Posting Group,GTIN,Item Category Code,Shopify Title'
                                     + ',Shopify Selling Option 1,GST Applies,Product Code,Brand,Auto Delivery,DEPT,CATEGORY,SUB CATEGORY,BRAND'
                                     + ',UOM 1,QTYPER 1,UOM 2,QTYPER 2' + CRLF);
                 Item.Reset;
@@ -706,6 +715,7 @@ Codeunit 80002 "HL Import Export Routines"
                         OutStrm.WriteText('PRIMARY,');
                         OutStrm.WriteText(Item."Vendor Item No." + ',');
                         OutStrm.WriteText(Format(Get_Cost(Item, Item."Vendor No."), 0, '<Precision,2><Standard Format,1>') + ',');
+                        OutStrm.WriteText(Format(Item."Rebate Wholesale Cost",0, '<Precision,2><Standard Format,1>') + ',');
                         OutStrm.WriteText(Item."Gen. Prod. Posting Group" + ',');
                         OutStrm.WriteText(Item."VAT Prod. Posting Group" + ',');
                         OutStrm.WriteText(Item.GTIN + ',');
@@ -1313,7 +1323,7 @@ Codeunit 80002 "HL Import Export Routines"
                 end;
             end;
         end;
-    end;
+end;
  Procedure  Build_Import_Export_Item_Prices()
     var
         Flds:list of [text];
@@ -2023,7 +2033,7 @@ Codeunit 80002 "HL Import Export Routines"
                         If GuiAllowed Then Win.update(1, Item."No.");
                         OutStrm.WriteText(Item."No." + ',');
                         OutStrm.WriteText(Item.Description.Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
-                         OutStrm.WriteText(Item."Parent Name".Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
+                        OutStrm.WriteText(Item."Parent Name".Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
                         OutStrm.WriteText(Item."Level 1 Name".Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
                         OutStrm.WriteText(Item."Level 2 Name".Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
                         OutStrm.WriteText(Item."Level 3 Name".Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
@@ -2040,5 +2050,446 @@ Codeunit 80002 "HL Import Export Routines"
             end;
         end;
     end;
-
+    Procedure Export_Promotions(PType:option Category,Brand;Period:integer)
+    var
+        BlobTmp:Codeunit "Temp Blob";
+        OutStrm:OutStream;
+        Instrm:InStream;
+        CRLF:text[2];
+        Filename:text;
+        HProm:Record "HL Promotions";
+    Begin
+        CRLF[1] := 13;
+        CRLF[2] := 10;
+        HProm.Reset;
+        If Period <> 0 then
+            HProm.Setrange("Promotion Period",Period);
+        HProm.Setrange("Promotion Type",Ptype);
+        If HProm.Findset then
+        begin
+            BlobTmp.CreateOutStream(OutStrm);
+            OutStrm.WriteText('Promtion Period,Promotion Type,Promotion Code,RRP Discount %,Promotion Start Date,Promotion End Date' + CRLF); 
+            repeat
+                OutStrm.WriteText(Format(HProm."Promotion Period") + ',');
+                OutStrm.WriteText(Format(HProm."Promotion Type") + ',');
+                OutStrm.WriteText(Format(HProm."Promotion Code").Replace(',','_') + ',');
+                OutStrm.WriteText(Format(HProm."RRP Discount %") + ',');
+                OutStrm.WriteText(Format(HProm."Promotion Start Date") + ',');
+                OutStrm.WriteText(Format(HProm."Promotion End Date") + CRLF);
+            Until HProm.next = 0;
+            FileName := Format(PType) + '_Export.csv'; 
+            BlobTmp.CreateInStream(InStrm);
+            DownloadFromStream(Instrm,Format(PType) +' Export','','',FileName);
+            Message('File '+ Filename + ' has been downloaded to your windows download folder');
+        end;
+    end;
+    procedure Import_Promotions()
+    Var
+        Dates:array[2] of Date;
+        Vars:Array[2] of code[30];
+        Period:integer;
+        SellPerc:Decimal;
+        PList:List of [Text];
+        Flg:Boolean;
+        Item:Record Item;    
+        HProm:record "HL Promotions";
+        HPromSku:record "HL Promotion Sku";
+        Flds:list of [text];
+        FData:Text;
+        Instrm:InStream;
+        Outstrm:OutStream;
+        FileName:Text;
+        Cnt:Integer;
+        i,j,k:Integer;
+        SkipCnt:Integer;
+        BlobTmp:Codeunit "Temp Blob";
+        Win:Dialog;
+        CU:Codeunit "HL Shopify Routines";
+     begin
+         if File.UploadIntoStream('Promotions Import','','',FileName,Instrm) then
+        Begin
+            BlobTmp.CreateOutStream(Outstrm);
+            CopyStream(Outstrm,Instrm);
+            Clear(Instrm);
+            BlobTmp.CreateInStream(Instrm);
+            If GuiAllowed then Win.Open('Processing Promotion Item #1#################');
+            Clear(SkipCnt);
+            Flg := True;
+            While Not Instrm.EOS AND Flg do
+            begin
+                Instrm.ReadText(FData);
+                SkipCnt += 1;
+                If SkipCnt > 1 then
+                    If StrLen(FData) > 0 then
+                        Plist.Add(FData);
+            end;
+            For i := 1 to Plist.Count do
+            begin
+                Flds := Plist.Get(i).Split(',');
+                Clear(Dates);
+                Clear(Vars);
+                if Flds.Count < 6 then Error('Promotion Period,Promotion Type,Promotion Code,RRP Discount %,Promotion Start Date,Promotion End Date must be defined');
+                If Not Evaluate(Period,Flds.Get(1).ToUpper()) then
+                    Error('Period Number Missing');
+                If (Period < 1) or (Period > 3) then
+                    Error('Invalid Period Number Supplied must be between 1 to 3');   
+                Vars[1] := Flds.Get(2).ToUpper();
+                Vars[2] := Flds.Get(3).ToUpper();
+                If Vars[1] = '' then error('Promotion Code Not Defined');
+                If Not Evaluate(SellPerc,Flds.Get(4)) then
+                    Error('Failed to validate The RRP Discount1 %');
+                If (SellPerc < 0) or (SellPerc > 100) then
+                    Error('RRP Discount % is Invalid > 100');
+                If SellPerc > 0 then
+                begin
+                    If Not Evaluate(Dates[1],Flds.Get(5)) then
+                        Error('Failed to validate the Promotion Start Date');
+                    If Not Evaluate(Dates[2],Flds.Get(6)) then
+                        Error('Failed to validate the Promotion End Date');
+                    If (Dates[1] = 0D) Or (Dates[2] = 0D) then
+                        Error('Both Start Date and Or End Date must be defined if Discount % defined');
+                    If Dates[1] > Dates[2] then
+                        Error('Start date Exceeds End Date');
+                    If Dates[2] < Today then
+                        Error('End date is less than today date');
+                end;            
+                HProm.reset;
+                HProm.Setrange("Promotion Period",Period);
+                HProm.Setrange("Promotion Type",HProm."Promotion Type"::Category);
+                If Vars[1] = 'BRAND' then
+                    HProm.Setrange("Promotion Type",HProm."Promotion Type"::Brand);
+                HProm.Setrange("Promotion Code",Vars[2]);
+                If HProm.findset then 
+                Begin 
+                    HProm."RRP Discount %" := SellPerc;
+                    HProm."Promotion Start Date" := Dates[1];
+                    HProm."Promotion End Date" := Dates[2];
+                    HProm.Modify(False);
+                    Item.Reset;
+                    Item.Setrange(Type,Item.Type::Inventory);
+                    If Hprom."Promotion Type" = HProm."Promotion Type"::Category then
+                        Item.Setrange("Shopify Category Name",HProm."Promotion Code")
+                    else
+                        Item.setrange(Brand,HProm."Promotion Code");    
+                    If Item.Findset then
+                    repeat
+                        If GuiAllowed then Win.update(1,Item."No.");
+                        If Not HPromSku.Get(HProm."Promotion Period",HProm."Promotion Type",HProm."Promotion Code",Item."No.") Then
+                        begin
+                            HPromSku.Init();
+                            HPromSku."Promotion Period" :=HProm."Promotion Period";
+                            HPRomSku.Brand := Item.Brand;
+                            HPromSku."Promotion Type" := HProm."Promotion Type";
+                            HPromSku."Promotion Code" := HProm."Promotion Code";
+                            HPromSku."Used In Promotion" := True;
+                            HPromSku.SKU := Item."No.";
+                            HPromSku.Insert()
+                        end;    
+                    Until Item.next = 0;        
+                end;
+            end;
+            If GuiAllowed Then Win.Close;    
+        end;
+    end;
+    procedure Export_Rebates(Brand:code[30])
+    var
+        Reb:Record "HL Rebate Sales";
+        RebSku:Record "HL Rebate Sales Sku";
+        BlobTmp:Codeunit "Temp Blob";
+        OutStrm:OutStream;
+        Instrm:InStream;
+        CRLF:text[2];
+        Filename:text;
+    begin
+        CRLF[1] := 13;
+        CRLF[2] := 10;
+        Reb.Reset;
+        Reb.Setrange(Brand,Brand);
+        If Reb.Findset then
+        begin
+            BlobTmp.CreateOutStream(OutStrm);
+            OutStrm.WriteText('Rebate Period,Brand,Rebate Sale Start Date,Rebate Sale End Date' + CRLF); 
+            repeat
+                OutStrm.WriteText(Format(Reb."Rebate Period") + ',');
+                OutStrm.WriteText(Format(Reb.Brand).Replace(',','_') + ',');
+                OutStrm.WriteText(Format(Reb."Rebate Sale Start Date") + ',');
+                OutStrm.WriteText(Format(Reb."Rebate Sale End Date") + CRLF);
+            Until Reb.Next = 0;
+            OutStrm.WriteText('Rebate Period,Brand,SKU,Decription,Rebate %,Rebate Wholesale Cost,Used In Reate Period' + CRLF); 
+            If Reb.findset then
+            repeat
+                RebSku.Reset();
+                RebSku.Setrange("Rebate Period",Reb."Rebate Period");
+                RebSku.Setrange(Brand,Reb.Brand);
+                If RebSku.Findset then
+                repeat
+                    RebSku.CalcFields("Rebate Wholesale Cost",Description);
+                    OutStrm.WriteText(Format(Rebsku."Rebate Period") + ',');
+                    OutStrm.WriteText(Format(Rebsku.Brand).Replace(',','_') + ',');
+                    OutStrm.WriteText(RebSku.Sku + ',');
+                    OutStrm.WriteText(RebSku.Description.Replace(',','_') + ',');
+                    OutStrm.WriteText(Format(Rebsku."Rebate %") + ',');
+                    OutStrm.WriteText(Format(Rebsku."Rebate Wholesale Cost") + ',');
+                    OutStrm.WriteText(Format(Rebsku."Used In Rebate Period") + CRLF);
+                Until RebSku.Next = 0;
+            until Reb.next = 0;
+        end;        
+        FileName := Brand + '_Rebate_' + Format(Reb."Rebate Period") + '_Export.csv'; 
+        BlobTmp.CreateInStream(InStrm);
+        DownloadFromStream(Instrm,Brand +' Export','','',FileName);
+        Message('File '+ Filename + ' has been downloaded to your windows download folder');
+    end;
+    procedure Import_Rebates(Var Brand:code[30])
+    Var
+        Dates:array[2] of Date;
+        Period:integer;
+        RList:List of [Text];
+        Flg:Boolean;
+        Item:Record Item;    
+        Reb:record "HL Rebate Sales";
+        RebSku:record "HL Rebate Sales Sku";
+        Flds:list of [text];
+        Impdata:Record "HL Rebate Sales Sku" temporary;
+        FData:Text;
+        Instrm:InStream;
+        Outstrm:OutStream;
+        FileName:Text;
+        Cnt:Integer;
+        i,j,k:Integer;
+        SkipCnt,StCkCnt:Integer;
+        BlobTmp:Codeunit "Temp Blob";
+        Win:Dialog;
+        CU:Codeunit "HL Shopify Routines";
+     begin
+        Clear(Brand);
+        if File.UploadIntoStream('Rebate Import','','',FileName,Instrm) then
+        Begin
+            BlobTmp.CreateOutStream(Outstrm);
+            CopyStream(Outstrm,Instrm);
+            Clear(Instrm);
+            BlobTmp.CreateInStream(Instrm);
+            If GuiAllowed then Win.Open('Processing Rebate Item #1#################');
+            Clear(SkipCnt);
+            Clear(StckCnt);
+            Flg := True;
+            While Not Instrm.EOS AND Flg do
+            begin
+                Instrm.ReadText(FData);
+                StckCnt += 1;
+                If StckCnt > 1 then
+                    If StrLen(FData) > 0 then
+                        if Fdata.Split(',').get(3).ToUpper().Contains('SKU') then 
+                            Clear(Flg)
+                        else    
+                            Rlist.Add(FData);
+                If StckCnt > 22 Then Error('Could not locate SKU start position in the file')            
+            end;
+            For i := 1 to Rlist.Count do 
+            begin
+                Flds := Rlist.Get(i).Split(',');
+                Clear(Dates);
+                if Flds.Count < 4 then Error('Rebate Period,Brand,Rebate Sale Start Date,Rebate Sale End Date must be defined');
+                If Not Evaluate(Period,Flds.Get(1).ToUpper()) then
+                    Error('Period Number Missing');
+                If (Period < 1) or (Period > 20) then
+                    Error('Invalid Period Number Supplied must be between 1 to 20');
+                Clear(Dates);   
+                If Flds.Get(3) <> '' then       
+                    If Not Evaluate(Dates[1],Flds.Get(3)) then
+                        Error('Failed to validate the Rebate Sale Start Date');
+                If Flds.Get(4) <> '' then       
+                    If Not Evaluate(Dates[2],Flds.Get(4)) then
+                        Error('Failed to validate the Rebate Sale End Date');
+                If(Dates[1] <> 0D) AND (Dates[2] <> 0D) then
+                begin
+                    If Dates[1] > Dates[2] then
+                        Error('Rebate Sale Start date Exceeds Rebate Sale End Date');
+                end;        
+            End;
+            For i := 1 to Rlist.Count do 
+            begin
+                Flds := Rlist.Get(i).Split(',');
+                If Reb.Get(Flds.get(1),Flds.Get(2)) then
+                begin
+                    If Flds.Get(3) <> '' then
+                        Evaluate(Reb."Rebate Sale Start Date",Flds.Get(3))
+                    else
+                        Clear(Reb."Rebate Sale Start Date");
+                    If Flds.Get(4) <> '' then
+                        Evaluate(Reb."Rebate Sale End Date",Flds.Get(4))
+                    else
+                        Clear(Reb."Rebate Sale End Date");
+                    Clear(reb."Rebate Activation Date");    
+                    Reb.Modify(False);
+                end
+                else
+                    Error(StrsubStno('Failed to find Record entry for Rebate Period %1 Brand %2',Flds.get(1),Flds.get(2)));
+                Clear(Instrm);
+                BlobTmp.CreateInStream(Instrm);
+                Clear(SkipCnt);
+                Clear(Flg);
+                While Not Instrm.EOS do
+                begin
+                    Instrm.ReadText(FData);
+                    SkipCnt += 1;
+                    If SkipCnt > StckCnt then 
+                    begin
+                        If StrLen(FData) > 0 then
+                        begin    
+                            Flds := FData.Split(',');
+                            If Flds.Count < 7 then
+                                Error('Rebate Period,Brand,SKU,Decription,Rebate %,Rebate Wholesale Cost,Used In Reate Period must be defined');
+                            If Flds.get(1) = Rlist.get(i).Split(',').get(1) then
+                            begin
+                                Impdata.init;
+                                Evaluate(Impdata."Rebate Period", Flds.get(1));
+                                If Not Reb.Get(Flds.get(1),Flds.Get(2)) then
+                                    Error(StrsubStno('Brand %1 does not exist',Flds.Get(2)));
+                                Impdata.Brand := Flds.Get(2);
+                                Brand := Impdata.Brand;
+                                If Not Item.Get(Flds.Get(3)) then
+                                    Error(strsubstno('SKU %1 Does not exist',Flds.Get(3)));
+                                If Not RebSku.Get(Impdata."Rebate Period",Impdata.Brand,Item."No.") then 
+                                    Error('SKU %1 does not belong to Rebate Period %2 Brand %3',Item."No.",Impdata."Rebate Period",Impdata.Brand);
+                                Impdata.SKU := Item."No.";
+                                If Not Evaluate(Impdata."Rebate %",Flds.Get(5)) then
+                                    Error('Rebate % is invalid');
+                                If (Impdata."Rebate %" < 0) or (Impdata."Rebate %" > 100) then
+                                    Error('Rebate % < 0 or > 100 is invalid');
+                                If Flds.get(7).ToUpper().Contains('YE') then
+                                    Impdata."Used In Rebate Period" := True;    
+                                If Not Impdata.Insert() then
+                                    Error(StrSubstNo('SKU %1 has been repeated',Impdata.Sku));
+                            end;
+                        end;
+                    end;
+                end;
+            end;
+            Impdata.reset;
+            If Impdata.FindSet then
+            repeat
+                If GuiAllowed Then Win.Update(1,Impdata.SKU);
+                RebSku.Copy(Impdata);
+                RebSku.Modify(False);
+            Until Impdata.Next = 0;   
+            If GuiAllowed Then Win.Close;    
+        end;
+    end;
+    procedure Export_Reconcilliation_Data(var ReCon:record "HL Order Reconciliations";PStDate:date)
+    var
+        BlobTmp:COdeunit "Temp Blob";
+        OutStrm:OutStream;
+        Instrm:InStream;
+        CRLF:text[2];
+        Filename:text;
+    begin
+        CRLF[1] := 13;
+        CRLF[2] := 10;
+        ReCon.setrange("Apply Status",Recon."Apply Status"::UnApplied);
+        If ReCon.findset then
+        begin
+            BlobTmp.CreateOutStream(OutStrm);
+            OutStrm.WriteText('Order ID/Posting Date,Merchant Fee/OrderType,Order No,Reference No,Order Total' + CRLF);
+            OutStrm.WriteText(Format(PStDate,0,'<day,2>/<month,2>/<year4>') + CRLF);
+            repeat
+                OutStrm.WriteText(Format(Recon."Shopify Order ID") + ',');
+                OutStrm.WriteText(Format(Recon."Shopify Order Type") + ',');
+                OutStrm.WriteText(Format(Recon."Shopify Order No") + ',');
+                OutStrm.WriteText(Recon."Reference No".Replace(',','') + ',');
+                OutStrm.WriteText(Format(Recon."Order Total").Replace(',','') + CRLF);
+            until ReCon.next = 0;    
+            FileName := Format(ReCon."Payment Gate Way") + '_Recon_Export.csv'; 
+            BlobTmp.CreateInStream(InStrm);
+            DownloadFromStream(Instrm,'Recon Export','','',FileName);
+            Message('File '+ Filename + ' has been downloaded to your windows download folder');
+        end;
+    end;
+    procedure Import_Reconcilliation(MFee:code[20])
+    var
+        ImpData:record "HL Order Reconciliations" temporary;
+        RecData:record "HL Order Reconciliations";
+        Flds:list of [text];
+        Instrm:InStream;
+        FileName:Text;
+        Cnt:Integer;
+        Win:Dialog;
+        FData:Text;
+        PstDate:Date;
+        ShopID:BigInteger;
+        OrdType:Integer;
+        Total:Decimal;
+        RecCnt:Integer;
+        Fee:Decimal;
+        CU:Codeunit "HL Reconcillations";
+        CRLF:text[2];
+    begin
+        CRLF[1] := 13;
+        CRLF[2] := 10;
+        ImpData.Reset;
+        If ImpData.findset then ImpData.DeleteAll();
+        if File.UploadIntoStream('Reconcilliation Import','','',FileName,Instrm) then
+        Begin
+            If GuiAllowed then Win.Open('Processing Shopify Order ID #1#################');
+            Clear(Cnt);
+            Clear(RecCnt);
+            While Not Instrm.EOS  do
+            begin
+                Cnt +=1;
+                Instrm.ReadText(FData);
+                If StrLen(FData) > 0 then
+                begin
+                    Flds := FData.Split(',');
+                    If Cnt = 2 then
+                    begin
+                        if Flds.Count < 2 then
+                            Error('Posting date parameter and or Merchant Fees not defined');
+                        If Not Evaluate(PstDate,Flds.Get(1)) then
+                            Error('Failed to validate the Posting Date');
+                        If Not Evaluate(Fee,Flds.Get(2)) then
+                            Error('Failed to validate the Merchant Fees');
+                        If Fee <= 0 then
+                            Error('Zero Merchant Fees is invalid')    
+                    end
+                    else if Cnt > 2 then 
+                    begin
+                        If Flds.Count < 5 then
+                            Error('Field Count Error');
+                        If Not Evaluate(ShopID,Flds.get(1)) then
+                            Error('Shopify Order ID is not valid');
+                        Case Flds.get(2).ToUpper() of 
+                            'INVOICE':OrdType := 0;
+                            'REFUND':OrdType := 1;
+                            'CANCELLED':OrdType := 2;
+                            else
+                                OrdType := -1;
+                        end;            
+                        If OrdType < 0 then
+                            Error('Order type is invalid');
+                        If Not Evaluate(Total,Flds.get(5)) then
+                            Error('Invalid Order Total');
+                        If RecData.get(ShopID,OrdType) then
+                        begin
+                            If (RecData."Apply Status" = RecData."Apply Status"::UnApplied)  
+                                AND (RecData."Order Total" = Total) then
+                            begin
+                                If GuiAllowed then Win.Update(1,ShopID);
+                                If Not ImpData.Get(RecData."Shopify Order ID",RecData."Shopify Order Type") then
+                                begin    
+                                    ImpData.Copy(RecData);
+                                    ImpData.Insert;
+                                    RecCnt += 1;
+                                end;
+                            end;    
+                        end;
+                    end;
+                end;
+            end;
+            If GuiAllowed then win.Close;
+            If Confirm(Strsubstno('%1 entries were found with %2 entries ready to process.' + CRLF
+                                + 'Using Posting Date %3 And Merchant Fees $%4 ... Contiue?',Cnt - 2,RecCnt,PstDate,Fee),False) then
+                Cu.Build_Reconcilliation_Cash_Receipts(ImpData,MFee,PstDate,Fee)
+            else
+                Message('Action aborted by user');        
+        end;
+    end;
 }

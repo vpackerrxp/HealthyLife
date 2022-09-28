@@ -1,4 +1,4 @@
-/*page 80012 "HL Supplier Brand List"
+page 80044 "HL Supplier Brand List"
 {
     Caption = 'Supplier Brands';
     PageType = List;
@@ -20,4 +20,4 @@
            }
         }
     }
-}*/    
+}    

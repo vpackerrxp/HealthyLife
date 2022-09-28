@@ -1,4 +1,4 @@
-/*page 80011 "HL Supplier Brand Rebates"
+page 80043 "HL Supplier Brand Rebates"
 {
     Caption = 'Supplier Brand Rebates';
     PageType = Worksheet;
@@ -141,33 +141,13 @@
                 field("Volume Rebate %"; rec."Volume Rebate %")
                 {
                     ApplicationArea = All;
+                    Caption = 'PartnerShip Rebate %';
                     Visible = Mode = Mode::"Purch Rebates";
                 }
                 field("Marketing Rebate %"; rec."Marketing Rebate %")
                 {
                     ApplicationArea = All;
                     Visible = Mode = Mode::"Purch Rebates";
-                }
-                field("Supply Chain Rebate %"; rec."Supply Chain Rebate %")
-                {
-                   ApplicationArea = All;
-                   Visible = Mode = Mode::"Purch Rebates";
-                }
-
-                field("Auto Order Rebate %"; rec."Auto Order Rebate %")
-                {
-                    ApplicationArea = All;
-                    Visible = Mode = Mode::"Auto Order";
-                }
-                field("Palatability Rebate %"; rec."Palatability Rebate %")
-                {
-                    ApplicationArea = All;
-                    Visible = Mode = Mode::Palatability;
-                }
-                field("PO Line Disc %"; rec."PO Line Disc %")
-                {
-                    ApplicationArea = All;
-                    Visible = Mode = Mode::PO;
                 }
                 field("Rebate Start Date Period"; rec."Rebate Start Date Period")
                 {
@@ -195,71 +175,14 @@
             {
                 ApplicationArea = All;
                 trigger OnAction();
-                var
-                    Ven:Record Vendor;
-                    Item:Record Item;
-                    SupReb:Record "HL Supplier Brand Rebates";
-                    ItemVen:Record "Item Vendor";
-                    win:dialog;
-                    Dat:date;
                 begin
                     If Confirm('Auto Update List Now?',True) then
-                    begin
-                        Win.open('Adding Supplier #1############\'
-                                +'Brand           #2###################');
-
-                        dat := Today;
-                        SupReb.Reset();
-                        SupReb.Setrange("Rebate Status",SupReb."Rebate Status"::Open);
-                        if SupReb.Findset then Dat := SupReb."Rebate Start Date Period";
-                        Ven.Reset;
-                        Ven.SetFilter("No.",'SUP-*');
-                        If Ven.Findset then
-                        repeat
-                            Item.Reset;
-                            Item.Setrange("Vendor No.",Ven."No.");
-                            Item.Setrange(Type,Item.Type::Inventory);
-                            If Item.Findset then
-                            repeat
-                                If not SupReb.Get(Ven."No.",Item.Brand,Dat) then
-                                begin
-                                    Win.update(1,Ven."No.");
-                                    Win.Update(2,Item.Brand);
-                                    SupReb.init;
-                                    SupReb."Supplier No." := Ven."No.";   
-                                    SupReb.Brand := Item.Brand;
-                                    SupReb."Rebate Start Date Period" := Dat;
-                                    SupReb."Rebate Status" := SupReb."Rebate Status"::Open;
-                                    SupReb.Insert;
-                                end;
-                            until Item.Next = 0;
-                        until Ven.next = 0;
-                        ItemVen.Reset;
-                        if ItemVen.findset then
-                        repeat
-                            Item.Get(ItemVen."Item No.");
-                            iF Item."Vendor No." <> '' then
-                            begin
-                                If not SupReb.Get(ItemVen."Vendor No.",Item.Brand,dat) then
-                                begin
-                                    Win.update(1,ItemVen."Vendor No.");
-                                    Win.Update(2,Item.Brand);
-                                    SupReb.init;
-                                    SupReb."Supplier No." := ItemVen."Vendor No.";   
-                                    SupReb.Brand := Item.Brand;
-                                    SupReb."Rebate Start Date Period" := Dat;
-                                    SupReb."Rebate Status" := SupReb."Rebate Status"::Open;
-                                    SupReb.Insert;
-                                end;
-                            end;    
-                        until ItemVen.Next = 0;
-                        win.close;
-                    end;                        
+                        Auto_Update();
                 end;
             }
         }
     }
-    
+   
     procedure Set_Page_Mode(PMode:option;Ven:code[20])
     begin
         Mode := Pmode;
@@ -277,7 +200,67 @@
     end;
     trigger OnOpenPage()
     begin
+        Auto_Update();
         SetFilters();
+    end;
+    local procedure Auto_Update()
+    var
+        Ven:Record Vendor;
+        Item:Record Item;
+        SupReb:Record "HL Supplier Brand Rebates";
+        ItemVen:Record "Item Vendor";
+        win:dialog;
+        Dat:date;
+    begin
+        Win.open('Adding Supplier #1############\'
+                +'Brand           #2###################');
+
+        dat := Today;
+        SupReb.Reset();
+        SupReb.Setrange("Rebate Status",SupReb."Rebate Status"::Open);
+        if SupReb.Findset then Dat := SupReb."Rebate Start Date Period";
+        Ven.Reset;
+        Ven.SetFilter("No.",'SUP-*');
+        If Ven.Findset then
+        repeat
+            Item.Reset;
+            Item.Setrange("Vendor No.",Ven."No.");
+            Item.Setrange(Type,Item.Type::Inventory);
+            If Item.Findset then
+            repeat
+                If not SupReb.Get(Ven."No.",Item.Brand,Dat) then
+                begin
+                    Win.update(1,Ven."No.");
+                    Win.Update(2,Item.Brand);
+                    SupReb.init;
+                    SupReb."Supplier No." := Ven."No.";
+                    SupReb.Brand := Item.Brand;
+                    SupReb."Rebate Start Date Period" := Dat;
+                    SupReb."Rebate Status" := SupReb."Rebate Status"::Open;
+                    SupReb.Insert;
+                end;
+            until Item.Next = 0;
+        until Ven.next = 0;
+        ItemVen.Reset;
+        if ItemVen.findset then
+        repeat
+            Item.Get(ItemVen."Item No.");
+            iF Item."Vendor No." <> '' then
+            begin
+                If not SupReb.Get(ItemVen."Vendor No.",Item.Brand,dat) then
+                begin
+                    Win.update(1,ItemVen."Vendor No.");
+                    Win.Update(2,Item.Brand);
+                    SupReb.init;
+                    SupReb."Supplier No." := ItemVen."Vendor No.";   
+                    SupReb.Brand := Item.Brand;
+                    SupReb."Rebate Start Date Period" := Dat;
+                    SupReb."Rebate Status" := SupReb."Rebate Status"::Open;
+                    SupReb.Insert;
+                end;
+            end;    
+        until ItemVen.Next = 0;
+        win.close;
     end;
     Var
         Supp:Code[20];
@@ -287,4 +270,4 @@
         Mode:option "Purch Rebates","Auto Order",Palatability,PO;
         SuppFlg:boolean;
 
-}*/
+}

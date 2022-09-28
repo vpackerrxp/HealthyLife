@@ -940,4 +940,92 @@ codeunit 80001 "HL NPF Routines"
                 error('');
         end;          
     end;
+ // rountine to include rebate information as required on purchase lines
+    Procedure Purch_Rebates(var Purchline:record "Purchase Line")
+    var
+        GenSetup:Record "General Ledger Setup";
+        SupBrand:Record "HL Supplier Brand Rebates";
+        PurchHdr:record "Purchase Header";    
+        Item:Record Item;
+        Ven:Record Vendor;
+    begin
+        PurchHdr.Get(Purchline."Document Type",Purchline."Document No.");
+        If (Purchline.Type = Purchline.Type::Item) AND (PurchHdr."Order Type" = Purchhdr."Order Type"::NPF) then
+        begin
+            GenSetup.Get;
+            Item.Get(Purchline."No.");
+            If Item.Type = Item.Type::Inventory then
+            begin
+                SupBrand.reset;
+                SupBrand.Setrange("Supplier No.",Purchline."Buy-from Vendor No.");
+                SupBrand.Setrange(Brand,Item.Brand);
+                SupBrand.Setrange("Rebate Status",SupBrand."Rebate Status"::Open);
+                SupBrand.Setfilter("Rebate Start Date Period",'<=%',Today);
+                If SupBrand.Findset then
+                begin
+                    Purchline."Line Rebate %" := SupBrand."Volume Rebate %";
+                    Purchline."Line Rebate %" += SupBrand."Marketing Rebate %";
+                end;
+                Purchline.validate("Indirect Cost %",-Purchline."Line Rebate %");    
+            end;    
+        end;    
+    end; 
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Purch.-Post", 'OnAfterPostItemLine', '', true, true)]
+    local procedure "Update Accural Rebates"
+    (
+        PurchaseLine: Record "Purchase Line";
+        CommitIsSupressed: Boolean;
+        PurchaseHeader: Record "Purchase Header";
+        RemQtyToBeInvoiced: Decimal;
+        RemQtyToBeInvoicedBase: Decimal
+    )
+    var
+        Reb:Record "HL Purchase Rebates";
+        SupBrand:Record "HL Supplier Brand Rebates";
+        Item:Record Item;
+        i:Integer;    
+        Amt:Decimal;
+    begin
+        If (PurchaseHeader."Order Type" = PurchaseHeader."Order Type"::NPF) 
+            And (Purchaseline."Document type" = PurchaseLine."Document Type"::order)
+            And (Purchaseline.Type = PurchaseLine.Type::Item)
+            And (PurchaseLine."Indirect Cost %" < 0) then
+        begin
+            Amt := ABS(Purchaseline.Amount * (PurchaseLine."Indirect Cost %"/100));  
+            Item.Get(Purchaseline."No.");
+            SupBrand.reset;
+            SupBrand.Setrange("Supplier No.",PurchaseHeader."Buy-from Vendor No.");
+            SupBrand.Setrange(Brand,Item.Brand);
+            SupBrand.Setrange("Rebate Status",SupBrand."Rebate Status"::Open);
+            SupBrand.Setfilter("Rebate Start Date Period",'<=%',Today);
+            If SupBrand.Findset then
+                For i:= 1 to 2 do
+                begin
+                    Reb.init;
+                    Clear(Reb.ID);
+                    Reb.Insert();
+                    Reb."Document No." := PurchaseHeader."Posting No.";
+                    Reb."Rebate Date" := PurchaseHeader."Posting Date";
+                    Reb."Supplier No." := PurchaseHeader."Buy-from Vendor No.";
+                    Reb."Item No." := PurchaseLine."No.";
+                    Reb."Document Line No." := PurchaseLine."Line No.";
+                    Reb.Brand := SupBrand.Brand;
+                    Case i of
+                        1:
+                        begin
+                            Reb."Rebate Type" := Reb."Rebate Type"::PartnerShip;
+                            Reb."Rebate Value" := amt * ABS(SupBrand."Volume Rebate %"/PurchaseLine."Indirect Cost %");
+                            Reb."Rebate %" := SupBrand."Volume Rebate %";  
+                        end;
+                        2:
+                        begin
+                            Reb."Rebate Type" := Reb."Rebate Type"::Marketing;
+                            Reb."Rebate Value" := amt * ABS(SupBrand."Marketing Rebate %"/PurchaseLine."Indirect Cost %");
+                            Reb."Rebate %" := SupBrand."Marketing Rebate %";  
+                        end;
+                    end;
+                    Reb.Modify();
+                end;
+        end;               
+    end;
 }

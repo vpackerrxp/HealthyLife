@@ -14,10 +14,16 @@ table 80000 "HL RestWebServiceArguments"
         Field(60; "Access Token"; text[150]) { }
         field(65; "SPS Access Token 1"; text[1000]){}
         field(66; "SPS Access Token 2"; text[200]) {}
+        field(67; "Oauth2 Access Token"; text[1500]) {}
         Field(70; "Token Type"; Option) 
         { 
-            OptionMembers = Shopify,FulFilio,SpsAuth,SpsData;
+            OptionMembers = Shopify,FulFilio,SpsAuth,SpsData,AuthToken;
         }
+
+
+
+
+
         field(100; Blob; Blob) { }
     }
     keys

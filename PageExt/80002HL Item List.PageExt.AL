@@ -182,7 +182,7 @@ pageextension 80002 "HL Item List Ext" extends "Item List"
                     PromotedCategory = Category11;
                     RunObject = Page "Sales & Receivables Setup";
                 }
-                  action(Msg9)
+                action(Msg9)
                 {
                     ApplicationArea = All;
                     Caption = 'Shopify Update Log';
@@ -190,6 +190,15 @@ pageextension 80002 "HL Item List Ext" extends "Item List"
                     Promoted = true;
                     PromotedCategory = Category11;
                     RunObject = Page "HL Shopify Update Log";
+                }
+                action("HLG")
+                {
+                    ApplicationArea = All;
+                    Caption = 'Webservice Execution Log';
+                    Image = Change;
+                    Promoted = true;
+                    PromotedCategory = Category11;
+                    RunObject = Page "HL Webservice Log";
                 }
             }
         }      

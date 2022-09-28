@@ -100,10 +100,9 @@ pageextension 80001 "HL Item Card Ext" extends "Item Card"
                     ApplicationArea = All;
                     Caption = 'Shopify Selling Option 1';
                 }
-                field("Shopify Selling Option 2"; rec."Shopify Selling Option 2")
+                field("Shopify Product Handle";rec."Shopify Product Handle")
                 {
                     ApplicationArea = All;
-                    Caption = 'Shopify Selling Option 2';
                 }
                field("Shelf Life Months";rec."Shelf Life Months")
                 {
@@ -132,16 +131,28 @@ pageextension 80001 "HL Item Card Ext" extends "Item Card"
                 {
                     ApplicationArea = All;
                 }
-                field("Category Name"; rec."Catergory Name")
+                field("Shopify Category Name";rec."Shopify Category Name")
+                {
+                    ApplicationArea = All;
+                }
+                field("Rebate Wholesale Cost";rec."Rebate Wholesale Cost")
+                {
+                    ApplicationArea = All;
+                }
+
+          /*      field("Category Name"; rec."Catergory Name")
                 {
                     ApplicationArea = All;
                     Caption = 'Category Name';
+                    Visible = False;
                 }
                 field("Sub Category Name"; rec."Sub Catergory Name")
                 {
                     ApplicationArea = All;
                     Caption = 'Sub Categfory Name';
+                    Visible = False;
                 }
+            */    
                 field("Shopify CRM Transfer Flag"; rec."Shopify Transfer Flag")
                 {
                     ApplicationArea = All;
@@ -168,7 +179,7 @@ pageextension 80001 "HL Item Card Ext" extends "Item Card"
                             Cu:Codeunit "HL Shopify Routines";
                         begin
                             if Confirm('Are You Absolutely Sure You Wish Remove Product From Shopify Now?',False) then
-                                If Cu.Delete_Items(rec."No.") then
+                                If Cu.Delete_Items(rec."No.",false) then
                                 begin
                                     rec.Get(rec."No.");
                                     Clear(rec."Shopify Item");
@@ -319,6 +330,7 @@ pageextension 80001 "HL Item Card Ext" extends "Item Card"
                 }
                 Group("Part Grouping")
                 {
+                    Visible = False;    
                     field("Parent Name";rec."Parent Name")
                     {
                         ApplicationArea = All;

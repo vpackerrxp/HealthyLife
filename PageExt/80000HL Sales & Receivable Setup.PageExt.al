@@ -102,38 +102,7 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                                 Message('Please provide all Shopify parameters.');;                       
                         end;
                     }
-                    field("Shopify Order No. Offset"; rec."Shopify Order No. Offset")
-                    {
-                        ApplicationArea = All;
-                    }
-                    field("Exception Email Address"; rec."Exception Email Address")
-                    {
-                        ApplicationArea = All;
-                        ExtendedDatatype = EMail;
-                        trigger OnAssistEdit()
-                        var 
-                            cu:Codeunit "HL Shopify Routines";
-                        begin
-                            rec.Modify;
-                            Commit;
-                            Rec.Get;
-                            If Confirm('Send Test Email', true) then
-                            begin
-                                If Cu.Send_Email_Msg('Test Email','This is a test','') then
-                                    Message('Email Sent Successfully')
-                                else
-                                    Message('Failed To Send Email');
-                            end;  
-                        end;
-                    }
-                    field("Order Process Count";rec."Order Process Count")
-                    {
-                        ApplicationArea = All;
-                    }
-                    field("Bypass Date Filter";rec."Bypass Date Filter")
-                    {
-                        ApplicationArea = All;
-                    }
+                   
                 }  
                 Group(NPF)
                 {
@@ -249,6 +218,137 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                             else
                                 Message('Please provide all NPF parameters.');;                       
                         end;
+                    }
+                }
+                Group(WebService)
+                {
+                    field("Web Service Oauth2 URL";rec."Web Service Oauth2 URL")
+                    {
+                        ApplicationArea = All;
+                    }
+                    field("Web Service API URL";rec."Web Service API URL")
+                    {
+                        ApplicationArea = All;
+                    }
+                    field("Web Service ClientID";rec."Web Service ClientID")
+                    {
+                        ApplicationArea = All;
+                    }
+                    field("Web Service Client Secret";rec."Web Service Client Secret")
+                    {
+                        ApplicationArea = All;
+                        ExtendedDatatype = Masked;
+                        ShowMandatory = true;
+                        trigger OnAssistEdit()
+                        begin
+                            Message(StrSubstNo('%1', rec."Web Service Client Secret"))
+                        end;
+                    }
+                    field("C";'TEST CONNNECTION')
+                    {
+                        ShowCaption = false; 
+                        ApplicationArea = All;
+                        Style = Strong;
+                        trigger OnDrillDown()
+                        var  
+                            cu:Codeunit "HL Shopify Routines";
+                            flg:Boolean;
+                        begin
+                            CurrPage.Update(True);
+                            Commit;
+                            rec.Get;
+                            Flg := (rec."Web Service Oauth2 URL" <> '')  
+                                ANd (rec."Web Service API URL" <> '')
+                                AND (rec."Web Service ClientID" <> '') 
+                                AND (rec."Web Service Client Secret" <> '');
+                            If Flg then
+                            begin        
+                                if Confirm('Test WebService Connection using supplied parameters now?',true) then
+                                    If CU.Set_WebService_Access_Token() then
+                                        Message('Connect Successfull')
+                                    else
+                                        Message('Connect Unsuccessfull');
+                            end                
+                            else
+                                Message('Please provide all Webservice parameters.');                      
+                        end;
+                    }
+                }    
+                Group(Orders)
+                {
+                    field("Order Process Count";rec."Order Process Count")
+                    {
+                        ApplicationArea = All;
+                    }
+                     field("Shopify Order No. Offset"; rec."Shopify Order No. Offset")
+                    {
+                        ApplicationArea = All;
+                    }
+                    field("Bypass Date Filter";rec."Bypass Date Filter")
+                    {
+                        ApplicationArea = All;
+                    }
+                    field("Refund Order Lookback Period";rec."Refund Order Lookback Period")
+                    {
+                        ApplicationArea = All;
+                    }
+                    field("Ext Refund Order Lookback Per";rec."Ext Refund Order Lookback Per")
+                    {
+                        ApplicationArea = All;
+                    }
+                }
+                Group(Email)
+                {
+                    field("Exception Email Address"; rec."Exception Email Address")
+                    {
+                        ApplicationArea = All;
+                        ExtendedDatatype = EMail;
+                        trigger OnAssistEdit()
+                        var 
+                            cu:Codeunit "HL Shopify Routines";
+                        begin
+                            rec.Modify;
+                            Commit;
+                            Rec.Get;
+                            If Confirm('Send Test Email', true) then
+                            begin
+                                If Cu.Send_Email_Msg('Test Email','This is a test',rec."Exception Email Address") then
+                                    Message('Email Sent Successfully')
+                                else
+                                    Message('Failed To Send Email');
+                            end;  
+                        end;
+                    }
+                    field("Shopify Excpt Email Address";rec."Shopify Excpt Email Address")
+                    {
+                        ApplicationArea = All;
+                        ExtendedDatatype = EMail;
+                        trigger OnAssistEdit()
+                        var 
+                            cu:Codeunit "HL Shopify Routines";
+                        begin
+                            rec.Modify;
+                            Commit;
+                            Rec.Get;
+                            If Confirm('Send Test Email', true) then
+                            begin
+                                If Cu.Send_Email_Msg('Test Email','This is a test',rec."Shopify Excpt Email Address") then
+                                    Message('Email Sent Successfully')
+                                else
+                                    Message('Failed To Send Email');
+                            end;  
+                        end;
+                    }
+                }    
+                Group(Debug)
+                {
+                    Field("Debug Start Date";rec."Debug Start Date")
+                    {
+                        ApplicationArea = All;
+                    }
+                    Field("Debug End Date";rec."Debug End Date")
+                    {
+                        ApplicationArea = All;
                     }
                 }
             }
@@ -414,15 +514,15 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
 
                    //Cu:Codeunit "Cryptography Management";
                    //HashAlgorithmType: Option MD5,SHA1,SHA256,SHA384,SHA512;
-                   Cu:Codeunit "HL Shopify Routines";
+                   //Cu:Codeunit "HL Shopify Routines";
                    //Cu:Codeunit "HL NPF Routines";
                    //cu:Codeunit "HL Shopify Routines";
                     //Shp:record "HL Shopify Order Header";
                     val:BigInteger;
-                    //CU:Codeunit Test;
+                    CU:Codeunit Test;
                 begin
-                    //Cu.Get_Shopify_Orders(0);
-                    Cu.Update_Order_Locations(278041);
+                    CU.Testrun();
+                    Exit;
                     //Cu.Testrun();
                     //CU.Fix_Refunds();
                     //CU.Process_Refunds();

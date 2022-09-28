@@ -9,7 +9,9 @@ tableextension 80009 "HL Purchase Line Ext" extends "Purchase Line"
                 Cu:Codeunit "HL Import Export Routines";
                 Item:Record Item;
                 ItemUnit:record "Item Unit of Measure";
+                Cuf:Codeunit "HL NPF Routines";
             begin
+                Cuf.Purch_Rebates(rec);
                 If Rec.Type = Rec.Type::Item then
                 begin
                     Item.Get("No.");       
@@ -80,5 +82,14 @@ tableextension 80009 "HL Purchase Line Ext" extends "Purchase Line"
         {
             editable = false;
         }
+        field(80005;"Brand"; Code[30])
+        {
+            editable = false;
+        }
+        field(80006;"Rebate Supplier No."; Code[20])
+        {
+            editable = false;
+        }
+
     }
 }

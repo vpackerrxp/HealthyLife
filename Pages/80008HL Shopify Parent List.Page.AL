@@ -4,6 +4,7 @@ page  80008 "HL Shopify Parent List"
     ApplicationArea = All;
     UsageCategory = Lists;
     SourceTable = Item;
+    SourceTableTemporary = True;
     SourceTableView = Where(Type=Const("Non-Inventory"),"No."=filter('PAR-*'),"Shopify Item"=Const(Shopify));
     InsertAllowed = false;
     DeleteAllowed = false;
@@ -21,18 +22,13 @@ page  80008 "HL Shopify Parent List"
                     ApplicationArea = All;
                     trigger OnValidate()
                     begin
-                        If title <> '' then
-                            rec.SetFilter("Shopify Title",'%1',StrsubStno('*%1*',Title))
-                        else
-                            rec.Setrange("Shopify Title");                     
-                        CurrPage.update(false);
-                    end;
+                        SetFilters;
+                    end;    
                     trigger OnAssistEdit()
                     begin
                         Clear(title);
-                        rec.Setrange("Shopify Title");                     
-                        CurrPage.update(false); 
-                    end;
+                        SetFilters();
+                     end;
                 }
                 Field("Transfered To Shopify Filter";Op)
                 {
@@ -40,19 +36,12 @@ page  80008 "HL Shopify Parent List"
                     Style = Strong;
                     trigger OnValidate()
                     begin
-                        If Op = Op::All then
-                            rec.Setrange("Is In Shopify Flag")
-                        else If Op = Op::Yes then
-                            rec.Setrange("Is In Shopify Flag",True)
-                        else
-                            rec.Setrange("Is In Shopify Flag",false);
-                        CurrPage.update(false);
-                    end;
+                        SetFilters;
+                     end;
                     trigger OnAssistEdit()
                     begin
                         Clear(Op);
-                        rec.Setrange("Is In Shopify Flag");
-                        CurrPage.update(false); 
+                        SetFilters;
                     end;
                 }
                 Field("";'Show No Children')
@@ -100,6 +89,34 @@ page  80008 "HL Shopify Parent List"
                         Item.get(rec."No.");    
                         pg.SetRecord(Item);
                         Pg.RunModal();
+                    end; 
+                }
+                field("Target Parent Sku No."; rec."No. 2")
+                {
+                    ApplicationArea = All;
+                    Editable = false;
+                    Caption = 'Target Parent Sku No.';
+                    trigger OnDrillDown()
+                    var
+                        pg:Page "Item List";
+                        Item:record Item;
+                    begin
+                        Item.Reset;
+                        Item.Setrange(Type,Item.TYpe::"Non-Inventory");
+                        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
+                        Item.Setfilter("No.",'PAR-*');
+                        If Item.Findset then
+                        Begin
+                            Pg.SetTableView(Item);
+                            Pg.LookupMode(true);
+                            If Pg.RunModal() = Action::LookupOK then
+                            begin
+                                Pg.GetRecord(Item);
+                                Rec."No. 2" := Item."No.";
+                                Rec.Modify(False);
+                            end;
+                            CurrPage.Update(false);
+                        end;    
                     end; 
                 }
                 field(Description; rec.Description)
@@ -153,7 +170,7 @@ page  80008 "HL Shopify Parent List"
     {
         area(Processing)
         {
-                Action(Msg4)
+            Action(Msg4)
             {
                 ApplicationArea = all;
                 Caption = 'Import Parent/Child Shopify Items';
@@ -195,7 +212,7 @@ page  80008 "HL Shopify Parent List"
                         If Temp.Findset then
                         repeat
                             Win.update(1,Temp."No.");
-                            Cu.Delete_Items(Temp."No.");  
+                            Cu.Delete_Items(Temp."No.",false);  
                         until Temp.Next = 0
                         else
                             Message('Nothing Found Marked for Removal');
@@ -235,7 +252,7 @@ page  80008 "HL Shopify Parent List"
                         If Temp.Findset then
                         repeat
                             Win.update(1,Temp."No.");
-                            Cu.Delete_Items(Temp."No.");  
+                            Cu.Delete_Items(Temp."No.",false);  
                             rel.Reset();
                             Rel.Setrange("Parent Item No.",temp."no.");
                             if Rel.findset Then Rel.DeleteAll();    
@@ -246,6 +263,84 @@ page  80008 "HL Shopify Parent List"
                         rec.Reset;
                         rec.SetRange(Type,rec.Type::"Non-Inventory");
                         rec.Setrange("Shopify Item",rec."Shopify Item"::Shopify);
+                        win.Close();    
+                    end;
+                end;    
+            }
+            action(Msg3)
+            {
+                ApplicationArea = All;
+                Caption = 'Parent/Child Movements With Shopify Delete';
+                Image = Change;
+                Promoted = true;
+                PromotedIsBig = true;
+                trigger OnAction();
+                var
+                    Win:Dialog;
+                    Temp:Record Item temporary;
+                    Pos:integer;
+                    Child:Code[20];
+                    Rel:Array[2] of record"HL Shopify Item Relations";
+                    Rel2:Record "HL Shopify Item Relations";
+                    Cu:Codeunit "HL Shopify Routines";
+                    Flg:Boolean;
+                begin
+                    If Confirm('Are You Sure You Wish To Move All Marked Parents Relationships To Target Parents Now?',True) then
+                    begin
+                        Win.Open('Moving Shopify Parent RelationShip #1##############');
+                        CurrPage.SetSelectionFilter(rec);
+                        temp.DeleteAll(False);
+                        If rec.findSet then
+                        repeat
+                            temp.Copy(Rec);
+                            If Temp."No." <> Temp."No. 2" then
+                                Temp.insert(false);
+                        until rec.Next = 0; 
+                        Temp.Reset;        
+                        If Temp.Findset then
+                        repeat
+                            Win.update(1,Temp."No.");
+                            Cu.Delete_Items(Temp."No.",false);
+                            Clear(Flg);
+                            Rel[1].Reset;
+                            Rel[1].SetCurrentKey("Child Position");
+                            Rel[1].Setrange("Parent Item No.",Temp."No. 2");
+                            If Rel[1].Findlast then
+                                Pos := Rel[1]."Child Position";          
+                            Rel[2].Reset();
+                            Rel[2].Setrange("Parent Item No.",temp."no.");
+                            if Rel[2].findset Then
+                            repeat
+                                Child := Rel[2]."Child Item No.";
+                                Rel[2].Delete(False);
+                                Rel[1].Reset;
+                                Rel[1].Setrange("Parent Item No.",Temp."No. 2");
+                                Rel[1].Setrange("Child Item No.",Child);
+                                If Not Rel[1].Findset then
+                                begin
+                                    Flg := True;    
+                                    Pos += 1;    
+                                    Rel[1].Init;
+                                    Rel[1]."Parent Item No." := Temp."No. 2";
+                                    Rel[1]."Child Item No." := Child;
+                                    Rel[1]."Child Position" := Pos;
+                                    Rel[1].Insert(True)
+                                end;
+                            Until Rel[2].next = 0;
+                            If Flg then
+                            begin
+                                Rel[1].Reset;
+                                Rel[1].Setrange("Parent Item No.",Temp."No. 2");
+                                IF Rel[1].findset then
+                                    Rel[1].Modifyall("Update Required",True,False);
+                                Cu.Process_Items(Temp."No. 2");
+                                Rec.Delete(False);    
+                            end;
+                        until Temp.Next = 0
+                        else
+                            Message('Nothing Found Marked for Movement');
+                        Clear(title);    
+                        rec.Reset;
                         win.Close();    
                     end;
                 end;    
@@ -318,12 +413,40 @@ page  80008 "HL Shopify Parent List"
             }
         }
     }
+    trigger OnInit()
+    var
+        Item:Record Item;
+    begin
+        Rec.Reset;
+        If Rec.Findset Then Rec.DeleteAll(False);
+        Item.Reset;
+        Item.Setrange(Type,Item.TYpe::"Non-Inventory");
+        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
+        Item.Setfilter("No.",'PAR-*');
+        If Item.Findset then
+        repeat
+            Rec.Copy(Item);
+            Rec."No. 2" := Rec."No.";
+            Rec.Insert(False);
+        Until Item.Next = 0;    
+    end;
     trigger OnAfterGetRecord()
     begin
         Styler := 'unfavorable';
         If rec."Is In Shopify Flag" Then Styler := 'favorable';
     end;
-        
+    Local procedure SetFilters()
+    begin
+        Rec.Reset;
+        If title <> '' then rec.SetFilter("Shopify Title",'%1',StrsubStno('*%1*',Title));
+        If Op <> Op::All then
+            If  Op = Op::Yes then
+                rec.Setrange("Is In Shopify Flag",True)
+            else
+                rec.Setrange("Is In Shopify Flag",false);
+        CurrPage.Update(false);        
+    end;
+
     local procedure Show_Relations()
     var
         Pg:page "HL Shopify Item Relations";

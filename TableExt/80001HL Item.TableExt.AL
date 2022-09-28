@@ -22,16 +22,22 @@ tableextension 80001 "HL Items Ext" extends Item
         {
             trigger OnAfterValidate()
             begin
-                If (Xrec.Description <> Rec.Description) then 
+                If (Xrec.Description <> Rec.Description) then
+                Begin
                     rec."Shopify Transfer Flag" := true;
+                    Update_WebService_Flag();
+                end;    
              end;
         }
         modify("Description 2")
         {
             trigger OnAfterValidate()
             begin
-                If (Xrec."Description 2" <> Rec."Description 2") then 
+                If (Xrec."Description 2" <> Rec."Description 2") then
+                Begin 
                     rec."Shopify Transfer Flag" := true;
+                    Update_WebService_Flag();
+                end;    
             end;
         }
         modify("Unit Cost")
@@ -46,8 +52,11 @@ tableextension 80001 "HL Items Ext" extends Item
         {
             trigger OnAfterValidate()
             begin
-                If (Xrec."Unit Price" <> Rec."Unit Price") Then 
+                If (Xrec."Unit Price" <> Rec."Unit Price") Then
+                begin 
                     Rec."Shopify Transfer Flag" := true;
+                    Update_WebService_Flag();
+                end;    
            end;    
         }
         modify("Base Unit of Measure")
@@ -87,9 +96,19 @@ tableextension 80001 "HL Items Ext" extends Item
         }
         field(80000; "Shopify Product ID"; biginteger)
         {
+            trigger OnValidate()
+            begin
+                If Rec."Shopify Product ID" <> Xrec."Shopify Product ID" then
+                    Update_WebService_Flag();
+            end;
         }
         field(80001; "Shopify Product Variant ID"; biginteger)
         {
+            trigger OnValidate()
+            begin
+                If Rec."Shopify Product Variant ID" <> Xrec."Shopify Product Variant ID" then
+                   Update_WebService_Flag();
+            end;
         }
         field(80002; "Shopify Product Inventory ID"; biginteger)
         {
@@ -107,6 +126,7 @@ tableextension 80001 "HL Items Ext" extends Item
                 begin
                     rec."Key Info Changed Flag" := True;
                     rec."Shopify Transfer Flag" := true;
+                    Update_WebService_Flag();
                 end; 
              end;
         }    
@@ -118,6 +138,7 @@ tableextension 80001 "HL Items Ext" extends Item
                 Begin
                     rec."Shopify Transfer Flag" := true;
                     Update_Parent();
+                    Update_WebService_Flag();
                 end;
             end;            
         }    
@@ -230,6 +251,7 @@ tableextension 80001 "HL Items Ext" extends Item
                 begin
                     rec."Shopify Transfer Flag" := true;
                     Update_Parent();
+                    Update_WebService_Flag();
                 end;
            end;    
         }
@@ -460,10 +482,22 @@ tableextension 80001 "HL Items Ext" extends Item
 
         Field(80056;"Sold As Finished Item";Boolean)
         {
-            
+        }
+        Field(80057;"Shopify Category Name";Code[30])
+        {
+            Editable = False;
+        }
+        Field(80058;"Rebate Wholesale Cost";decimal)
+        {
+        }
+        Field(80059;"Shopify Product Handle";Text[100])
+        {
+            Editable = False;
+        }
+        Field(80060;"Web Service Update Flag";boolean)
+        {
         }
     }
-
     Procedure Update_Parent()
     var
         Rel:record "HL Shopify Item Relations";
@@ -482,6 +516,28 @@ tableextension 80001 "HL Items Ext" extends Item
             Clear(rec."Shopify Update Flag");
         end;
     end;
+    procedure Update_WebService_Flag()
+    var
+        Rel:record "HL Shopify Item Relations";
+        Item:record Item;
+    begin
+        If Rec.Type = Rec.Type::Inventory then
+            Rec."Web Service Update Flag" := true
+        else
+        begin    
+            Rel.Reset;
+            Rel.Setrange("Parent Item No.",Rec."No.");
+            If Rel.Findset then
+            repeat
+                Item.Get(Rel."Child Item No.");
+                If Not Item."Web Service Update Flag" then
+                begin
+                    Item."Web Service Update Flag" := True;
+                    Item.Modify(false);
+                end;
+            until Rel.next = 0;    
+        end;
+    end;    
     procedure Get_Price():Decimal
     var
         Sp:Record "HL Shopfiy Pricing";
@@ -504,7 +560,7 @@ tableextension 80001 "HL Items Ext" extends Item
         Until Sp.next = 0;
         If (RRP > 0) and (RRP <> rec."Unit Price") then 
         begin
-            rec."Unit Price" := RRP;
+            rec.Validate("Unit Price",RRP);
             rec.Modify(False);
             Commit;
         end;
@@ -632,6 +688,10 @@ tableextension 80001 "HL Items Ext" extends Item
         else
             exit('N/A');    
     end;
+    trigger OnAfterInsert()
+    begin
+        Rec."Web Service Update Flag" := True;
+    end;
     trigger OnBeforeDelete()
     var
         Test:text;
@@ -645,17 +705,17 @@ tableextension 80001 "HL Items Ext" extends Item
             If Not Confirm('WARNING deletion is not advised until this item has been properly removed from CRM/Shopify first .. do you still wish to delete now?',False) then
                 Error('');
             Sprice.Reset;
-            Sprice.Setrange("Item No.","No.");
+            Sprice.Setrange("Item No.",rec."No.");
             If Sprice.findset then Sprice.DeleteAll();
             Pcost.Reset;
-            Pcost.Setrange("Item No.","No.");
+            Pcost.Setrange("Item No.",rec."No.");
             If Pcost.findset then Pcost.DeleteAll();
             Rel.Reset;
             if Test.Startswith('SKU-') then
-                rel.Setrange("Child Item No.","no.")
+                rel.Setrange("Child Item No.",rec."no.")
             else
-                rel.Setrange("Parent Item No.","No.");
-            If Rel.findset then Rel.DeleteAll();
+                rel.Setrange("Parent Item No.",rec."No.");
+            If Rel.findset then Rel.DeleteAll(True);
         end;            
     end;
 }

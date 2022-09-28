@@ -13,6 +13,7 @@ table 80010 "HL Supplier Brand Rebates"
         field(30;"Volume Rebate %"; Decimal)
         {
             MaxValue = 100;
+            Caption = 'Partnership Rebate %';
         }
         field(40;"Marketing Rebate %"; Decimal)
         {
@@ -42,7 +43,6 @@ table 80010 "HL Supplier Brand Rebates"
         {
             editable = false;
         }
-
         field(90;"Rebate Status"; Option)
         {
             OptionMembers = Open,Closed;

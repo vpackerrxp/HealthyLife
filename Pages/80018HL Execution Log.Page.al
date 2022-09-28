@@ -5,7 +5,7 @@ page 80018 "HL Execution Log"
     UsageCategory = Lists;
     ApplicationArea = All;
     SourceTable = "HL Execution Log";
-    SourceTableView = order(descending); 
+    SourceTableView = sorting(ID)order(descending)where("Execution Type"=Const(Process));
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = false;
@@ -100,7 +100,8 @@ page 80018 "HL Execution Log"
                             If confirm(StrSubstNo('Remove all Records < %1 Now?',CalcDate('-7D',Today)),True) then
                             begin
                                 Rec.Reset;
-                                Rec.Setfilter("Execution Time",'<%1',CreateDateTime(CalcDate('-7D',Today),000000T));
+                                Rec.Setrange("Execution Type",rec."Execution Type"::Process);
+                                Rec.Setfilter("Execution Time",'<%1',CreateDateTime(CalcDate('-7D',Today),0T));
                                 If Rec.findset then Rec.DeleteAll();
                                 SetFilters();
                             end;
@@ -117,6 +118,7 @@ page 80018 "HL Execution Log"
                             If confirm('Remove all Records Now?',True) then
                             begin
                                 Rec.Reset;
+                                Rec.Setrange("Execution Type",rec."Execution Type"::Process);
                                 If Rec.findset then Rec.DeleteAll();
                                 SetFilters();
                             end;
@@ -164,6 +166,7 @@ page 80018 "HL Execution Log"
     begin
         rec.Reset;
         rec.SetAscending(ID,false);
+        Rec.Setrange("Execution Type",rec."Execution Type"::WebService);
         if Exdate <> 0D then
              rec.SetRange("Execution Start Time",CreateDateTime(Exdate,000000T),CreateDateTime(Exdate,235959T));
         If Stat <> Stat::ALL then rec.SetRange(Status,Stat-1);

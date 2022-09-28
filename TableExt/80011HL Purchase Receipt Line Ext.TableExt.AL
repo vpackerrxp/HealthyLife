@@ -23,5 +23,13 @@ tableextension 80011 "HL Purchase Receipt Line Ext" extends "Purch. Rcpt. Line"
         {
             editable = false;
         }        
+        field(80005;"Brand"; Code[30])
+        {
+            editable = false;
+        }
+        field(80006;"Rebate Supplier No."; Code[20])
+        {
+            editable = false;
+        }
      }
 }

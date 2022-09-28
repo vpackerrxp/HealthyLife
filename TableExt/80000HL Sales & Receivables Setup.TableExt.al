@@ -48,5 +48,50 @@ tableextension 80000 "HL Sales & Receivables Ext " extends "Sales & Receivables 
         {}
         field(80028; "Gift Card Order Index"; Biginteger)
         {}
+
+        field(80029; "Refund Order Lookback Period"; integer)
+        {
+            MinValue = 1;
+            InitValue = 2;
+            MaxValue = 4;
+            Caption = 'Refund Order Lookback Period in Weeks';
+        }
+        field(80030; "Debug Start Date"; Date)
+        {
+        }
+        field(80031; "Debug End Date"; Date)
+        {
+        }
+        field(80032; "Ext Refund Order Lookback Per"; integer)
+        {
+            MinValue = 1;
+            InitValue = 2;
+            MaxValue = 4;
+            Caption = 'Extra Refund Order Lookback Period in Months';
+        }
+        field(80033; "Web Service Oauth2 URL";Text[80])
+        {
+        }
+        field(80034; "Web Service API URL";Text[80])
+        {
+        }
+        field(80035; "Web Service ClientID";Text[80])
+        {
+        }
+        field(80036; "Web Service Client Secret";Text[80])
+        {
+        }
+        Field(80037;"Oauth2 Token";Text[1500])
+        {
+            Editable = False;
+        }
+        field(80038; "Shopify Excpt Email Address"; text[80])
+        {
+            Caption = 'Shopify Update Exceptions Email Address';
+        }
+
+
+
+
     }
 }

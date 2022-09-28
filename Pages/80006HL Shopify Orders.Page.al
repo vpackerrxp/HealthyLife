@@ -242,12 +242,14 @@ page 80006 "HL Shopify Orders"
                 field("Shopify Invoice/Credit No."; rec."Shopify Order No.")
                 {
                     ApplicationArea = All;
+                    Style = Strong;
                     trigger OnDrillDown()
                     var
                         cu:Codeunit "HL Shopify Routines";
                     begin
-                        If confirm('Retrieve Orders Using this record as Start index',False) then
-                            Cu.Get_Shopify_Orders(Rec."Shopify Order ID");
+                        If confirm(StrSubstNo('Retrieve Orders Using This Record As Start index'
+                                    + ' And Order No %1 As The End Order No.',EndOrdNo),False) then
+                            Cu.Get_Shopify_Orders(Rec."Shopify Order ID",EndOrdNo);
                     end;
                     trigger OnAssistEdit()
                     var
@@ -450,8 +452,8 @@ page 80006 "HL Shopify Orders"
                         Excp: Record "HL Shopify Order exceptions";
                         Sel:Integer;
                     begin
-                        If Proc <> '*' then 
-                        begin
+                        //If Proc <> '*' then 
+                        //begin
                             if Confirm('Attempt to reprocess this order Now', True) then 
                             begin
                                 Sel := StrMenu('Via NPF Check,ByPass NPF Check',1);
@@ -468,7 +470,7 @@ page 80006 "HL Shopify Orders"
                                 end;    
                             end;
                             SetFilters();
-                        end;
+                        //end;
                     end;
                 }
                 field("Status"; rec."Order Status")
@@ -505,6 +507,15 @@ page 80006 "HL Shopify Orders"
                     ShowCaption = True;
                 }
             }
+            Group(Debug)
+            {
+                field("Debug Shopify Order No";EndOrdNo)
+                {
+                    ApplicationArea = All;
+                    Style = Strong;
+                    ShowCaption = True;
+                }
+            }    
         }
     }
     actions
@@ -526,7 +537,7 @@ page 80006 "HL Shopify Orders"
                         Cu: Codeunit "HL Shopify Routines";
                     begin
                         If Confirm('Retrieve Orders From Shopify Now?', True) then
-                            Cu.Get_Shopify_Orders(0);
+                            Cu.Get_Shopify_Orders(0,0);
                         CurrPage.update(false);
                     end;
                 }
@@ -698,7 +709,7 @@ page 80006 "HL Shopify Orders"
         TransFilter: array[2] of date;
         OrdDateFilter: array[2] of date;
         Stat: option " ",Open,Closed;
-        Type: option " ",Invoice,"Credit Memo";
+        Type: option " ",Invoice,"Credit Memo",Cancelled;
         Fstat: option " ",Incomplete,Complete;
         Excpt: text[20];
         Apps: text[20];
@@ -706,4 +717,6 @@ page 80006 "HL Shopify Orders"
         OrdStat: Option " ",FULFILLED,PARTIAL,NULL;
         OrdNo:integer;
         OrdID:BigInteger;
+        EndOrdNo:BigInteger;
+
 }

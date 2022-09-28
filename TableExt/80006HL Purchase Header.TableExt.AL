@@ -30,11 +30,11 @@ tableextension 80006 "HL Purchase Header Ext" extends "Purchase Header"
                 win.Open('Refreshing Lines ....');  
                 If "Order Type" = "Order type"::NPF then
                 begin
-                    //If Purchline.Findset then
-                    //repeat
-                        //CU.Purch_Rebates(Purchline);
-                      //  Purchline.Modify(true); 
-                    //until PurchLine.next = 0;
+                    If Purchline.Findset then
+                    repeat
+                        CU.Purch_Rebates(Purchline);
+                        Purchline.Modify(true); 
+                    until PurchLine.next = 0;
                 end
                 else 
                 begin

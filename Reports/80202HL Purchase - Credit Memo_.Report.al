@@ -323,9 +323,13 @@ report 80203 "PC Purchase - Credit Memo"
                         column(Desc_PurchCrMemoLine;Description)
                         {
                         }
-                        column(PurchLineItemRef;"Cross-Reference No.")
+                        /*column(PurchLineItemRef;"Cross-Reference No.")
+                        {
+                        }*/
+                        column(PurchLineItemRef;"Item Reference No.")
                         {
                         }
+
                         column(Desc_PurchCrMemoLineCaption;FieldCaption(Description))
                         {
                         }

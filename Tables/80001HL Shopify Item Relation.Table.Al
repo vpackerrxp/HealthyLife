@@ -32,10 +32,32 @@ table 80001 "HL Shopify Item Relations"
         }
         field(40;"Child Position"; integer)
         {
+            trigger OnValidate()
+            var
+                Item:record Item;
+            begin
+                If rec."Child Position" <> xRec."Child Position" then
+                begin
+                    Item.get(Rec."Child Item No.");
+                    Item."Web Service Update Flag" := True;
+                    Item.Modify(True);
+                end;    
+            end;        
         }
         field(50;"Un Publish Child"; Boolean)
         {
             //editable = false;
+            trigger OnValidate()
+            var
+                Item:record Item;
+            begin
+                If rec."Un Publish Child" <> xRec."Un Publish Child" then
+                begin
+                    Item.get(Rec."Child Item No.");
+                    Item."Web Service Update Flag" := True;
+                    Item.Modify(True);
+                end;    
+            end;        
         }
         field(60;"Move To Parent"; Code[20])
         {
@@ -67,6 +89,7 @@ table 80001 "HL Shopify Item Relations"
         begin
             Check_duplicates();
             Item."Is Child Flag" := True;
+            Item."Web Service Update Flag" := true;
             Item.Modify(False);
         end;
         If Item.Get("Parent Item No.") then
@@ -88,19 +111,28 @@ table 80001 "HL Shopify Item Relations"
     end;
     trigger OnDelete()
     var
-        Item:Record Item;
+        Item:Array[2] of Record Item;
+        DelTrck:record "HL Track Item Relation Deletes";
     begin
-       If Item.Get("Child Item No.") then 
-        begin
-            If Item."Is In Shopify Flag" Then Error('Delete is not possible Child Item still exists in shopify');     
-        end
+        If Item[1].Get("Child Item No.") then 
+            If Item[1]."Is In Shopify Flag" Then Error('Delete is not possible Child Item still exists in shopify')     
         else
             error('Child Item does not exist');
-        If Item.Get("Parent Item No.") then
+        If Item[2].Get("Parent Item No.") then
         begin
-            Item."Shopify Update Flag" := True;
-            Item.Modify(false);
-        end;    
+            Item[2]."Shopify Update Flag" := True;
+            Item[2].Modify(false);
+        end;
+        DelTrck.init;
+        DelTrck."Parent SKU" := Rec."Parent Item No.";
+        DelTrck."Child SKU" := Rec."Child Item No.";
+        DelTrck.insert;
+        DelTrck."Parent ID" := Item[2]."Shopify Product ID";
+        DelTrck."Child ID" := Item[1]."Shopify Product Variant ID";
+        DelTrck.Price := Item[1]."Current Price";
+        DelTrck."Parent Name" := Item[2]."Shopify Title";
+        DelTrck."Child Name" := Item[1]."Shopify Selling Option 1";
+        DelTrck.Modify(false);
     end;
     trigger OnRename()
     begin

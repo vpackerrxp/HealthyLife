@@ -25,5 +25,17 @@ codeunit 80004 Watchdog
                 Jobq.Restart();
             end;
         end;
-    end;
+        Jobq.Setrange("Object ID to Run",Codeunit::"HL WebService Routines");
+        If Jobq.findSet then
+        begin
+            Jqlog.Reset();
+            Jqlog.Setrange("Object Type to Run",Jobq."Object Type to Run");
+            Jqlog.Setrange("Object ID to Run",Jobq."Object ID to Run");
+            If Jqlog.Findlast() then
+            begin
+                CU.Send_Email_Msg('HL Web Service Job Queue Error',jQlog."Error Message",'vpacker@practiva.com.au');
+                Jobq.Restart();
+            end;
+        end;
+    end;    
 }

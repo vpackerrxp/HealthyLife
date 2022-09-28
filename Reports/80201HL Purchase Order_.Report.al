@@ -320,13 +320,21 @@ report 80201 "HL Purchase Order"
                         {
                         }
                         //Gerard 
+                        /*
                         column(PurchLineCrossRef;"Purchase Line"."Cross-Reference No.")
                         {
                         }
                         column(PurchLineItemRef;"Purchase Line"."Cross-Reference No.")
                         {
                         }
-                        
+                        */
+                        column(PurchLineCrossRef;"Purchase Line"."Item Reference No.")
+                        {
+                        }
+                        column(PurchLineItemRef;"Purchase Line"."Item Reference No.")
+                        {
+                        }
+                       
                         column(LineNo_PurchLine;"Purchase Line"."Line No.")
                         {
                         }
@@ -495,8 +503,8 @@ report 80201 "HL Purchase Order"
                             if(PurchLine.Type = PurchLine.Type::Item)then begin
                                 if "Purchase Line"."No." <> '' then begin
                                     item.get("Purchase Line"."No.");
-                                    if ItemVendor.get("Purchase Line"."Buy-from Vendor No.", "Purchase Line"."No.", "Purchase Line"."Variant Code")then if ItemVendor."Vendor Item No." <> '' then "Purchase Line"."Cross-Reference No.":=ItemVendor."Vendor Item No.";
-                                    if("Purchase Line"."Cross-Reference No." = '') and (item."Vendor No." = "Purchase Line"."Buy-from Vendor No.")then "Purchase Line"."Cross-Reference No.":=item."Vendor Item No.";
+                                    if ItemVendor.get("Purchase Line"."Buy-from Vendor No.", "Purchase Line"."No.", "Purchase Line"."Variant Code")then if ItemVendor."Vendor Item No." <> '' then "Purchase Line"."Item Reference No.":=ItemVendor."Vendor Item No.";
+                                    if("Purchase Line"."Item Reference No." = '') and (item."Vendor No." = "Purchase Line"."Buy-from Vendor No.")then "Purchase Line"."Item Reference No.":=item."Vendor Item No.";
                                 end;
                             end;
                             if(PurchLine.Type = PurchLine.Type::"G/L Account") and (not ShowInternalInfo)then "Purchase Line"."No.":='';

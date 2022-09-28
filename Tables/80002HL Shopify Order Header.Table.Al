@@ -42,7 +42,7 @@ table 80002 "HL Shopify Order Header"
         }
         field(100;"Order Type";Option)
         {
-            OptionMembers = Invoice,CreditMemo;
+            OptionMembers = Invoice,CreditMemo,Cancelled;
             Editable = false;
         }
         field(110;"BC Reference No.";Code[20])

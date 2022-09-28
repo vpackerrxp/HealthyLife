@@ -1,4 +1,4 @@
-codeunit 80005 Test 
+codeunit 80006 Test 
  {
      Permissions = TableData "Sales Invoice Line" = rm;
 
@@ -6,7 +6,7 @@ codeunit 80005 Test
 var
         Paction:Option GET,POST,DELETE,PATCH,PUT;
         WsError:text;
-        ShopifyBase:Label '/admin/api/2021-10/';
+        ShopifyBase:Label '/admin/api/2022-07/';
 
     procedure Testrun()
     var
@@ -22,23 +22,35 @@ var
         win:dialog;
         i:integer;
         Item:record Item;
+        DefDim:Record "Default Dimension";
+        Dim:record "Dimension Value";
+        CUT:Codeunit "HL WebService Routines";
+        Jsobj:JsonObject;
     begin
+        Clear(Jsobj);
+        Jsobj.add('datefrom',Format(CreateDateTime(Today,0T)));
+        Jsobj.WriteTo(PayLoad);
+        Clear(Jsobj);
+        Jsobj.add('data',PayLoad);
+        Jsobj.WriteTo(PayLoad);
+        CUT.Transfer_Items_To_API();    
+        Exit;
         Item.reset;
         Item.Setrange(Type,Item.Type::Inventory);
         IF Item.findset then
         repeat
-            Item."Price Includes VAT" := Item."VAT Prod. Posting Group" = 'GST10';
-            Item.Modify(False);
-            Item.Update_Parent();
+            DefDim.Reset;
+            DefDim.Setrange("Table ID",Database::Item);
+            DefDim.Setrange("No.",Item."No.");
+            DefDim.Setrange("Dimension Code",'DEPARTMENT');
+            If DefDim.FindSet() then
+            Begin
+                Dim.Get(DefDim."Dimension Code",DefDim."Dimension Value Code");    
+                Item."Shopify Category Name" := Dim.name.Replace(',','_');
+                Item.Modify(False);
+            End;    
         until Item.Next = 0;    
         exit;
-        
-
-
-
-
-
-
         Win.Open('Record Count #1####### of #2#######');    
         Clear(Parms);
         Parms.Add('fields','discount_applications');
@@ -370,10 +382,6 @@ var
         If OrdHdr1.findset then
             OrdHdr1.ModifyAll("Refunds Checked",False); 
          
-
-
-
-        
  /*       repeat
             OrdHdr2.reset;
             OrdHdr2.Setrange("Shopify Order Id",OrdHdr1."Shopify Order ID");
@@ -383,7 +391,7 @@ var
             OrdHdr1.Delete(True);                   
         until OrdHdr1.next = 0;*/
         Commit;
-        CU.Process_Refunds();
+        CU.Process_Refunds(0);
     end;
 
     local procedure Get_Order_Transactions(var Ordhdr:record "HL Shopify Order Header")

@@ -1,4 +1,4 @@
-/*table 80014 "HL Purchase Rebates"
+table 80032 "HL Purchase Rebates"
 {
     fields
     {
@@ -8,7 +8,7 @@
         }
         field(20;"Rebate Type"; option)
         {
-            OptionMembers = Volume,Marketing,Supply;
+            OptionMembers = PartnerShip,Marketing,Sales;
         }
         field(30;"Rebate Date"; Date)
         {
@@ -31,7 +31,12 @@
         field(90;"Brand"; Code[30])
         {
         }
-
+        field(100;"Document Line No."; Integer)
+        {
+        }
+        field(110;"Rebate %"; Decimal)
+        {
+        }
     }
     keys
     {
@@ -41,4 +46,4 @@
         }
     }
     
-}*/
+}

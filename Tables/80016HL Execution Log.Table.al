@@ -1,11 +1,15 @@
 table 80016 "HL Execution Log"
 {
-  
+
     fields
     {
         field(10;ID; Integer)
         {
             AutoIncrement = true;       
+        }
+        field(12;"Execution Type";Option)
+        {
+            OptionMembers = Process,WebService;       
         }
         field(15;"Execution Start Time"; Datetime)
         {

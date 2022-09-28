@@ -3,7 +3,7 @@ codeunit 80000 "HL Shopify Routines"
     var
         Paction:Option GET,POST,DELETE,PATCH,PUT;
         WsError:text;
-        ShopifyBase:Label '/admin/api/2021-04/';
+        ShopifyBase:Label '/admin/api/2022-07/';
       
     trigger OnRun()
     Var
@@ -17,10 +17,12 @@ codeunit 80000 "HL Shopify Routines"
             log.insert;
             Commit;
             Log."Execution Start Time" := CurrentDateTime;
+            Log."Execution Type" := Log."Execution Type"::Process;
             case i of
                 1:
                 begin
                     Log."Operation" := 'Synchronise Shopify Items';
+                    ClearLastError();
                     If Process_Items('') then
                         Log.Status := Log.Status::Pass
                     else
@@ -29,7 +31,8 @@ codeunit 80000 "HL Shopify Routines"
                 2:
                 begin
                     Log."Operation" := 'Retrieve Shopify Orders';
-                    if Get_Shopify_Orders(0) then
+                    ClearLastError();
+                    if Get_Shopify_Orders(0,0) then
                         Log.Status := Log.Status::Pass
                     else
                        log."Error Message" := CopyStr(GetLastErrorText,1,250);
@@ -37,6 +40,7 @@ codeunit 80000 "HL Shopify Routines"
                 3:
                 begin
                     Log."Operation" := 'Process Shopify Orders';
+                    ClearLastError();
                     If Process_Orders(false,0) then 
                         Log.Status := Log.Status::Pass
                     else
@@ -92,13 +96,15 @@ codeunit 80000 "HL Shopify Routines"
         end;
         RequestMessage.SetRequestUri(HttpUrl);
         if not RequestMessage.GetHeaders(Headers) then exit(false);
-        if RestRec."Access Token" <> '' then
-        begin
-            If RestRec."Token Type" =  RestRec."Token Type"::Shopify then
-                Headers.Add('Authorization', 'Basic ' + RestRec."Access Token")
-            else
-                Headers.Add('Authorization', 'Bearer ' + RestRec."Access Token");
-        end;
+        if (RestRec."Access Token" <> '') Or (RestRec."Oauth2 Access Token" <> '') then
+            Case RestRec."Token Type" of
+                RestRec."Token Type"::Shopify:
+                    Headers.Add('Authorization', 'Basic ' + RestRec."Access Token");
+                RestRec."Token Type"::AuthToken:
+                    Headers.Add('Authorization', 'Bearer ' + RestRec."Oauth2 Access Token");
+                else    
+                    Headers.Add('Authorization', 'Bearer ' + RestRec."Access Token");
+            end;
         if RestRec.Accept <> '' then Headers.Add('Accept', RestRec."Accept");
         If Restrec.RestMethod  in [RestRec.RestMethod::POST
                                   ,RestRec.RestMethod::PUT,RestRec.RestMethod::PATCH] then
@@ -108,6 +114,7 @@ codeunit 80000 "HL Shopify Routines"
             if Not Content.GetHeaders(Headers) Then Exit(false);
             Headers.Clear();
             Headers.Add('Content-Type','application/json');
+            Headers.Add('Content-Length',Format(StrLen(Data)));
             RequestMessage.Content := Content;  
         end; 
         Client.Clear();
@@ -131,6 +138,7 @@ codeunit 80000 "HL Shopify Routines"
     begin
         Setup.get;
         Clear(WsError);
+        Ws.Locktable(True);
         Ws.init;
         If Setup."Use Shopify Dev Access" then
         Begin 
@@ -141,7 +149,7 @@ codeunit 80000 "HL Shopify Routines"
         begin
             Ws.URL := Setup."Shopify Connnect Url";
             ws."Access Token" := cu.ToBase64(Setup."Shopify API Key" + ':' + Setup."Shopify Password");
-         end;
+        end;
         Ws.Url += Request;
         ws."Token Type" := ws."Token Type"::Shopify;
         Ws.RestMethod := Method;
@@ -153,6 +161,69 @@ codeunit 80000 "HL Shopify Routines"
             exit(false);
         end;
     end; 
+    procedure Web_Sevice_Data(Method:option;Parms:Dictionary of [text,text];Payload:Text;var Data:jsonobject;var Error:text): boolean
+    var
+       Setup:Record "Sales & Receivables Setup";
+       Ws:Record "HL RestWebServiceArguments";
+    begin
+        Setup.get;
+        Clear(Error);
+        Ws.Locktable(True);
+        Ws.init;
+        Ws.URL := Setup."Web Service API URL";
+        Ws."Oauth2 Access Token" := Setup."Oauth2 Token";
+        ws."Token Type" := ws."Token Type"::AuthToken;
+        Ws.RestMethod := Method;
+        if CallRESTWebService(ws,Parms,Payload) then
+           exit(Data.ReadFrom(ws.GetResponseContentAsText()))
+        else
+        begin
+            Error := ws.GetResponseContentAsText(); 
+            exit(false);
+        end;
+    end;    
+    procedure Set_WebService_Access_Token():Boolean;
+    var
+        Setup:record "Sales & Receivables Setup";
+        Ws:Record "HL RestWebServiceArguments";
+        Cu:Codeunit "Base64 Convert";
+        Flg:Boolean;
+        PayLoad:text;
+        Parms:Dictionary of [text,text];
+        JsObj:JsonObject;
+        JsToken:JsonToken;
+        Vars:array[2] of text;
+        TypeHelper: Codeunit "Type Helper";
+    Begin
+        Setup.LockTable(true);
+        Setup.Get();
+        Ws.Locktable(True);
+        Ws.init;
+        Ws.Url := Setup."Web Service Oauth2 URL";
+        ws."Token Type" := ws."Token Type"::AuthToken;
+        Ws.RestMethod := Ws.RestMethod::POST;
+        Clear(JsObj);
+        JsObj.Add('client_id',Setup."Web Service ClientID");
+        JsObj.Add('client_secret',Setup."Web Service Client Secret");
+        JsObj.Add('audience','https://dev-integration.healthylife.dev/api');
+        JsObj.add('grant_type','client_credentials');   
+        JsObj.WriteTo(PayLoad);
+        Flg := CallRESTWebService(ws,Parms,PayLoad);
+        if flg then Flg := Jsobj.ReadFrom(ws.GetResponseContentAsText());
+        If Flg then
+        begin
+            If Jsobj.Get('access_token',Jstoken) then
+                If not Jstoken.AsValue().IsNull then
+                begin
+                    Setup."Oauth2 Token" :=  Jstoken.AsValue().AsText();
+                    Setup.Modify;
+                    commit;
+                end
+                else
+                    Clear(flg);    
+        end;    
+        Exit(flg);
+    End;
     local procedure House_Keeping()
     var
         Logs:record "Job Queue Log Entry";
@@ -180,7 +251,9 @@ codeunit 80000 "HL Shopify Routines"
     var
         Sprice:array[2] of record "HL Shopfiy Pricing";
         ChMsg:text;
+        Setup:record "Sales & Receivables Setup";
     begin
+        Setup.Get;
         Clear(ChMsg);    
         Sprice[1].Reset;
         Sprice[1].Setrange("Ending Date",CalcDate('1D',Today));
@@ -191,7 +264,7 @@ codeunit 80000 "HL Shopify Routines"
             Sprice[2].Setrange("Starting Date",Sprice[1]."Ending Date");        
             If Sprice[2].Findset then CHMsg += Check_Change(Sprice[1],Sprice[2]); 
         Until Sprice[1].next = 0;
-        If Strlen(ChMsg) > 0 then Send_Email_Msg('Price Change Alerts',ChMsg,'');
+        If Strlen(ChMsg) > 0 then Send_Email_Msg('Price Change Alerts',ChMsg,Setup."Exception Email Address");
     end;
     local procedure Check_Change(Sp1:record"HL Shopfiy Pricing";SP2:record "HL Shopfiy Pricing"):text
     var
@@ -248,8 +321,10 @@ codeunit 80000 "HL Shopify Routines"
         Item:record Item;
         Rel:record "HL Shopify Item Relations";
         Filt:text;
+        wind:Dialog;
     Begin
         // See if email alerts required for a price change or not
+        if GuiAllowed then Wind.Open('Refreshing Product Sell Prices');
         Check_For_Price_Change();
         Clear(Filt);
         if ItemNo <> '' then
@@ -284,54 +359,346 @@ codeunit 80000 "HL Shopify Routines"
             Item.Modify(False);
         until Item.next = 0;    
         Commit;
+        If GuiAllowed Then Wind.Close;
     End;
-// Checks to ensure the Variants are aligned properly to the parent 
-    local Procedure Check_Product_Structure(Var Item:Record Item)
-    var
-        Rel:record "HL Shopify Item Relations";
-        flg:Boolean;
-        Item2:record Item;
-        i:integer;
-        hasZero:Integer;
-        Cnt:Integer;
-    begin
-        Clear(Flg);
+    Procedure Fix_Product_Handles()
+    Var
+        Item:Record Item;
+        Data:JsonObject;
+        PayLoad:text;
+        Parms:Dictionary of [text,text];
+        JsArry:jsonArray;
+        JsToken:array[2] of JsonToken;
+        i:Integer;
+        win:dialog;
+    Begin
+        Win.Open('Processing Item #1###########');
+        Clear(parms);
+        Parms.add('fields','handle');
+        Item.reset;
+        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
+        // ensure they have a title always
+        Item.Setfilter("Shopify Title",'<>%1','');
+        Item.SetFilter("Shopify Product ID",'>0');
+        Item.SetRange("Is Child Flag",False);
+        Item.Setrange("Shopify Product Handle",'');
+        If Item.Findset then
+        repeat
+            sleep(200);
+            If Shopify_Data(Paction::GET,ShopifyBase + 'products/' + Format(Item."Shopify Product ID") +'.json'
+                            ,Parms,Payload,Data) then
+            begin                 
+                if Data.Get('product',JsToken[1]) then
+                    If JsToken[1].SelectToken('handle',jstoken[2]) then
+                    begin
+                        Win.Update(1,Item."No.");
+                        Item."Shopify Product Handle" := JsToken[2].AsValue().AsText();
+                        Item.Modify(False);
+                    end;
+            end;
+        until Item.next = 0;
+        Win.Close;    
+    end;    
+   local procedure Build_Product_Handle(Handle:text):Text
+    Var
+        HTemp:array[2] of Text;
+        Item:Record Item;
+        i:Integer;
+        Reqd:Boolean;
+    Begin
+        HTemp[1] := Handle.ToLower().Replace(' ','-');
+        Htemp[1] := HTemp[1].Replace('+','-');
+        Htemp[1] := HTemp[1].Replace('&','-');
+        Htemp[1] := HTemp[1].Replace('#','-');
+        Htemp[1] := HTemp[1].Replace('%','-');
+        If HTemp[1].endswith('-') then
+            Htemp[1] := HTemp[1].Remove(Htemp[1].LastIndexOf('-',1));
+        Htemp[2] := HTemp[1];
+        Reqd := True;
         Clear(i);
-        Clear(hasZero);
-        Rel.Reset;
-        Rel.SetCurrentKey("Child Position");
-        Rel.Setrange("Un Publish Child",False);
-        Rel.Setrange("Parent Item No.",Item."No.");
-        If Rel.Findset then
+        While Reqd do
         begin
-            i:= Rel.Count;
-            repeat
-                If Item2.Get(Rel."Child Item No.") then
-                begin; 
-                    Flg := Item2."Shopify Product Variant ID" > 0;
-                    If Item2."Shopify Product Variant ID" = 0 then hasZero +=1;
-                end;     
-            until (Rel.next = 0) or Flg;
-        end;    
-        // see if anything assigned now
-        If Not Flg then exit;
-        Check_Product_ID(Item,Cnt);
-        If (Cnt <> i) or (hasZero > 0) then
-        begin
-            Clear(i);
-            Rel.Findset;
-            repeat
-                Item2.Get(Rel."Child Item No.");
-                Clear(Item2."Shopify Product Inventory ID");
-                Item2.Modify(false);
-                Rel."Child Position" := i;
-                i+=1;
-                Rel.modify(false);    
-            until Rel.Next = 0;
+            i+=1;
+            Item.reset;
+            Item.Setrange("Shopify Product Handle",Htemp[1]);
+            Reqd := Item.Findset;
+            If Reqd then HTemp[1] := HTemp[2] + '-' + Format(i);  
         end;
+        Exit(HTemp[1]);
+    end;        
+
+    local procedure Build_Shopify_Parents(ItemFilt:Code[20])
+    var
+        Item:Record Item;
+        JsObj:jsonObject;
+        JsObj1:jsonObject;
+        JsArry:jsonArray;
+        Data:JsonObject;
+        JsToken:array[2] of JsonToken;
+        PayLoad:text;
+        Parms:Dictionary of [text,text];
+        wind:Dialog;
+        Rel:record "HL Shopify Item Relations";
+        i:Integer;
+        Flg:Boolean;
+        ItTxt:text;
+        Log:record "HL Shopify Update Log";
+        Handle:text;
+    begin
+        Item.reset;
+        If Itemfilt <> '' then
+            Item.Setrange("No.",ItemFilt);
+        Item.Setrange("Shopify Update Flag",True);
+        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
+        If Item.FindSet() then
+        repeat
+            Rel.Reset();
+            Rel.Setrange("Parent Item No.",Item."No.");
+            If Rel.FindSet() then 
+                rel.Modifyall("Update Required",true,false);
+            Clear(Item."Shopify Update Flag");
+            Item.Modify(False);
+        until Item.Next = 0;
+        Commit;
+        // start by doing any brand new items
+        If GuiAllowed then  Wind.Open('Creating Shopify Item #1################');
+        Clear(JsObj);
+        Clear(Jsobj1);
+        Clear(Parms);
+        Item.reset;
+        If Itemfilt <> '' then
+            Item.Setrange("No.",ItemFilt);
+        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
+        // ensure they have a title always
+        Item.Setfilter("Shopify Title",'<>%1','');
+        Item.SetRange("Shopify Product ID",0); 
+        If Item.findset then
+        repeat
+            Clear(Jsobj);
+            Clear(Jsobj1);
+            // ensure it's not a child item
+            Flg := True; 
+            Rel.Reset();
+            Rel.Setrange("Child Item No.",Item."No.");
+            If Not Rel.findset then
+            begin
+                ItTxt :=  Item."No.";
+                // see if this is a parent but has no item relations defined
+                If ItTxt.StartsWith('PAR-') then
+                begin
+                    Rel.reset;
+                    Rel.Setrange("Parent Item No.",Item."No.");
+                    Flg := Rel.findset;
+                end;
+                If Flg then
+                begin    
+                    // see if this is a parent without any children
+                    Rel.reset;
+                    Rel.Setrange("Parent Item No.",Item."No.");
+                    If Rel.Findset then Flg := Rel.Count > 0;
+                end; 
+                If Flg then
+                begin
+                    If GuiAllowed then Wind.Update(1,Item."No."); 
+                    JsObj.Add('title',Item."Shopify Title");
+                    Handle:= Build_Product_Handle(Item."Shopify Title");
+                    JsObj.add('handle',Handle);
+                    JsObj.Add('status','draft');
+                    Clear(Jsobj1);
+                    JsObj1.Add('product',JsObj);
+                    JsObj1.WriteTo(PayLoad);
+                    If Shopify_Data(Paction::POST,ShopifyBase + 'products.json',Parms,Payload,Data) then
+                    Begin
+                        Data.Get('product',JsToken[1]);
+                        JsToken[1].AsObject().SelectToken('variants',JsToken[2]);
+                        JsArry := jstoken[2].AsArray(); 
+                        JsArry.Get(0,JsToken[1]);       
+                        Jstoken[1].SelectToken('product_id',JsToken[2]);
+                        Item.validate("Shopify Product ID",JsToken[2].AsValue().AsBigInteger());
+                        Jstoken[1].SelectToken('id',JsToken[2]);
+                        Item.validate("Shopify Product Variant ID",JsToken[2].AsValue().AsBigInteger());
+                        Jstoken[1].SelectToken('inventory_item_id',JsToken[2]);
+                        Item.validate("Shopify Product Inventory ID",JsToken[2].AsValue().AsBigInteger());
+                        Item.Validate("CRM Shopify Product ID",Item."Shopify Product ID");
+                        Item."Shopify Product Handle" := Handle; 
+                        Item."Shopify Transfer Flag" := true;  // flag the creation of a new Item
+                        Item."Shopify Publish Flag" := True;  // flag as a new Item 
+                        Item."Is In Shopify Flag" := True;
+                        Clear(Item."Is Child Flag");
+                        Rel.reset;
+                        Rel.Setrange("Parent Item No.",Item."No.");
+                        If Rel.Findset then 
+                        Begin
+                            rel.Modifyall("Update Required",true,false);
+                            Item."Purchasing Blocked" := true;
+                        end;    
+                        item.modify(false);
+                    end
+                    else
+                        Update_Error_Log(StrSubstNo('Failed to create item %1 in Shopify',Item."No."));
+                end;
+            end;        
+        until Item.next = 0;
+        Commit;
+        If GuiAllowed then wind.Close();
+    end;
+    local procedure Get_Parent_Variant_Structure(Item:Record Item;var SkuLst:List of [Text];var SkuIdLst:list of [BigInteger]):BigInteger
+    Var 
+        Data:JsonObject;
+        PayLoad:text;
+        Parms:Dictionary of [text,text];
+        JsArry:jsonArray;
+        JsToken:array[2] of JsonToken;
+        i:Integer;
+        ProdID:BigInteger;
+    Begin
+        Clear(ProdID);
+        Clear(SkuLst);
+        Clear(SkuIdLst);
+        sleep(100);
+        Parms.add('fields','variants');
+        If Shopify_Data(Paction::GET,ShopifyBase + 'products/' + Format(Item."Shopify Product ID") +'.json'
+                        ,Parms,Payload,Data) then
+        begin                 
+            if Data.Get('product',JsToken[1]) then
+                If JsToken[1].SelectToken('variants',jstoken[2]) then
+                begin
+                    JsArry := JsToken[2].AsArray();
+                    for i := 0 to JsArry.Count - 1 do
+                    begin
+                        JsArry.get(i,JsToken[1]);
+                        jstoken[1].SelectToken('sku',JsToken[2]);
+                        SkUlst.Add(JsToken[2].AsValue().AsCode());
+                        jstoken[1].SelectToken('id',JsToken[2]);
+                        SkuIDlst.Add(JsToken[2].AsValue().AsBigInteger());
+                        jstoken[1].SelectToken('product_id',JsToken[2]);
+                        ProdID := JsToken[2].AsValue().AsBigInteger();
+                    end;
+                end;    
+        end;
+        sleep(100);
+        If (ProdID = 0) and (Strlen(Item."Shopify Product Handle") > 0) then
+        begin
+            Parms.Add('handle',Item."shopify product handle");
+            If Shopify_Data(Paction::GET,ShopifyBase + 'products.json'
+                                ,Parms,Payload,Data) then 
+            begin
+                if Data.Get('products',JsToken[1]) then
+                    If JsToken[1].AsArray().get(0,JsToken[2]) then
+                        If JsToken[2].SelectToken('variants',jstoken[1]) then
+                        begin
+                            JsArry := JsToken[1].AsArray();
+                            for i := 0 to JsArry.Count - 1 do
+                            begin
+                                JsArry.get(i,JsToken[1]);
+                                jstoken[1].SelectToken('sku',JsToken[2]);
+                                SkUlst.Add(JsToken[2].AsValue().AsCode());
+                                jstoken[1].SelectToken('id',JsToken[2]);
+                                SkuIDlst.Add(JsToken[2].AsValue().AsBigInteger());
+                                jstoken[1].SelectToken('product_id',JsToken[2]);
+                                ProdID := JsToken[2].AsValue().AsBigInteger();
+                            end;
+                        end;    
+            end;
+        end;    
+        exit(ProdID);     
+    End; 
+    local procedure Check_Shopify_Child_Structure(ItemFilt:Code[20])
+    var
+        Item:Array[2] of Record Item;
+        Rel:record "HL Shopify Item Relations";
+        SkuLst:List of [Text];
+        SkuIDlst:list of [BigInteger];
+        ChildItem:text[20];
+        i:integer;
+        ErrFlg:Boolean;
+        win:Dialog;
+        ProdID:BigInteger;
+        VarID:BigInteger;
+    begin
+        If GuiAllowed then Win.Open('Checking Parent/Child Structure #1############'
+                                   +'Logging Error Item #2#############');
+        Item[1].reset;
+        If Itemfilt <> '' then
+            Item[1].Setrange("No.",ItemFilt);
+        Item[1].Setrange("Shopify Item",Item[1]."Shopify Item"::Shopify);
+        // ensure they have a title always
+        Item[1].Setfilter("Shopify Title",'<>%1','');
+        Item[1].SetFilter("Shopify Product ID",'>0');
+        Item[1].SetRange("Is Child Flag",False); 
+        If Item[1].Findset then
+        repeat
+            If GuiAllowed then Win.Update(1,Item[1]."No.");
+            // Check its not a stand alone Parent
+            Rel.Reset;
+            Rel.SetCurrentKey("Child Position");
+            Rel.Setrange("Parent Item No.",Item[1]."No.");
+            Rel.Setrange("Un Publish Child",False);
+            If Rel.Findset then
+            begin
+                // now get the linked child structure
+                Clear(ErrFlg);
+                Clear(i);   
+                ProdID := Get_Parent_Variant_Structure(Item[1],SkuLst,SkuIDlst);
+                If ProdID = 0 then 
+                    ErrFlg := true
+                else    
+                    repeat
+                        i+=1;
+                        If Skulst.Get(i,ChildItem) then
+                        begin
+                            if Rel."Child Item No." <> ChildItem then
+                                ErrFlg := True;
+                        End 
+                        else
+                            ErrFlg := true;
+                    until (Rel.next = 0) or Errflg;           
+                If ErrFlg then 
+                begin
+                   If GuiAllowed then Win.Update(2,Item[1]."No.");
+                   If ProdID = 0 then
+                        Update_Error_Log(StrSubStno('Parent %1 Shopify Product ID %2 and or Handle Cannot be found in Shopify'
+                                                             ,Item[1]."No.",Item[1]."Shopify Product ID"))
+                    else
+                        Update_Error_log(Strsubstno('Parent %1 has missing variants and or variant positions are not correct',Item[1]."No."));
+                end
+                Else
+                begin
+                    Clear(i);   
+                    If Rel.Findset then 
+                    repeat
+                        i+=1;
+                        Skulst.Get(i,ChildItem);
+                        SkuIDlst.Get(i,VarID);
+                        Item[2].Get(ChildItem);
+                        If Item[2]."Shopify Product Variant ID" <> VarID then
+                        begin
+                            Item[2].Validate("Shopify Product Variant ID",VarID);
+                            Item[2].Modify(False);
+                        end;
+                        Clear(errflg);    
+                        If i = 1 then
+                        begin                       
+                            If Item[1]."Shopify Product ID" <> ProdID then
+                            Begin                  
+                                Item[1].Validate("Shopify Product ID",ProdID);
+                                Item[1].Modify(False);
+                            end;    
+                            If Item[1]."Shopify Product Variant ID" <> VarID then
+                            Begin;
+                                Item[1].Validate("Shopify Product Variant ID",VarID);
+                                Item[1].Modify(False);
+                            end;    
+                       end;
+                    until rel.next = 0;            
+                end;
+                If GuiAllowed then Win.Update(2,'');
+            end;
+        until Item[1].next = 0;
+        If GuiAllowed then win.close;    
     end;
     //rountine to Process Item transfers to shopify
-    procedure Process_Items(ItemFilt:Code[20]):Boolean
+    local Procedure Build_Shopify_Children(ItemFilt:Code[20])
     var
         Item:array[2] of Record Item;
         JsObj:jsonObject;
@@ -351,115 +718,12 @@ codeunit 80000 "HL Shopify Routines"
         ItemUnit:record "Item Unit of Measure";
         ItemNo:Code[20];
     begin
-        // prep for any changes to parents
-        if GuiAllowed then Wind.Open('Refreshing Product Sell Prices');
-        Refresh_Product_Pricing(ItemFilt);
-        Item[1].reset;
-        If Itemfilt <> '' then
-            Item[1].Setrange("No.",ItemFilt);
-        Item[1].Setrange("Shopify Update Flag",True);
-        Item[1].Setrange("Shopify Item",Item[1]."Shopify Item"::Shopify);
-        If Item[1].FindSet() then
-        repeat
-            Rel.Reset();
-            Rel.Setrange("Parent Item No.",Item[1]."No.");
-            If Rel.FindSet() then 
-                rel.Modifyall("Update Required",true,false);
-            Clear(Item[1]."Shopify Update Flag");
-            Item[1].Modify(False);
-        until Item[1].Next = 0;
-        Commit;
-        // start by doing any brand new items
-        If GuiAllowed then 
-        begin
-            Wind.Close;
-            Wind.Open('Creating Shopify Item #1################');
-        end;    
-        Clear(JsObj);
-        Clear(Jsobj1);
-        Clear(Parms);
-        Item[1].reset;
-        If Itemfilt <> '' then
-            Item[1].Setrange("No.",ItemFilt);
-        Item[1].Setrange("Shopify Item",Item[1]."Shopify Item"::Shopify);
-        // ensure they have a title always
-        Item[1].Setfilter("Shopify Title",'<>%1','');
-        Item[1].SetRange("Shopify Product ID",0); 
-        If Item[1].findset then
-        repeat
-            Clear(Jsobj);
-            Clear(Jsobj1);
-            // ensure it's not a child item
-            Flg := True; 
-            Rel.Reset();
-            Rel.Setrange("Child Item No.",Item[1]."No.");
-            If Not Rel.findset then
-            begin
-                // see if this is a parent without any children
-                ItTxt :=  Item[1]."No.";
-                // see if this is a parent but has no item relations defined
-                If ItTxt.StartsWith('PAR-') then
-                begin
-                    Rel.reset;
-                    Rel.Setrange("Parent Item No.",Item[1]."No.");
-                    Flg := Rel.findset;
-                end;
-                If Flg then
-                begin    
-                    // see if this is a parent without any children
-                    Rel.reset;
-                    Rel.Setrange("Parent Item No.",Item[1]."No.");
-                    If Rel.Findset then Flg := Rel.Count > 0;
-                end; 
-                If Flg then
-                begin 
-                    If GuiAllowed then Wind.Update(1,Item[1]."No."); 
-                    JsObj.Add('title',Item[1]."Shopify Title");
-                    JsObj.Add('status','active');
-                    Clear(Jsobj1);
-                    JsObj1.Add('product',JsObj);
-                    JsObj1.WriteTo(PayLoad);
-                    Sleep(20);
-                    If Shopify_Data(Paction::POST,ShopifyBase + 'products.json',Parms,Payload,Data) then
-                    Begin
-                        Data.Get('product',JsToken[1]);
-                        JsToken[1].AsObject().SelectToken('variants',JsToken[2]);
-                        JsArry := jstoken[2].AsArray(); 
-                        JsArry.Get(0,JsToken[1]);       
-                        Jstoken[1].SelectToken('product_id',JsToken[2]);
-                        Item[1]."Shopify Product ID" := JsToken[2].AsValue().AsBigInteger();
-                        Jstoken[1].SelectToken('id',JsToken[2]);
-                        Item[1]."Shopify Product Variant ID" := JsToken[2].AsValue().AsBigInteger();
-                        Jstoken[1].SelectToken('inventory_item_id',JsToken[2]);
-                        Item[1]."Shopify Product Inventory ID" := JsToken[2].AsValue().AsBigInteger();
-                        Item[1]."CRM Shopify Product ID" := Item[1]."Shopify Product ID"; 
-                        Item[1]."Shopify Transfer Flag" := true;  // flag the creation of a new Item
-                        Item[1]."Shopify Publish Flag" := True;  // flag as a new Item 
-                        Item[1]."Is In Shopify Flag" := True;
-                        Clear(Item[1]."Is Child Flag");
-                        Rel.reset;
-                        Rel.Setrange("Parent Item No.",Item[1]."No.");
-                        If Rel.Findset then 
-                        Begin
-                            rel.Modifyall("Update Required",true,false);
-                            Item[1]."Purchasing Blocked" := true;
-                        end;    
-                        item[1].modify(false);
-                     end
-                    else
-                        Update_Error_Log(StrSubstNo('Failed to create item %1 in Shopify',Item[1]."No."));
-                end;
-            end;        
-        until Item[1].next = 0;
-        Commit;
-        If GuiAllowed then 
-        begin
-            wind.Close();
+       If GuiAllowed then 
             Wind.open('Updating Shopify Item           #1#################\'
                      +'Creating/Updating Shopify Child #2#################');
-        end;
         //now we do the items that exist by updating the created/updating Product Variant
         //no need to worry about title now
+        Clear(Parms);
         Item[1].Reset;
         If Itemfilt <> '' then
             Item[1].Setrange("No.",ItemFilt);
@@ -481,8 +745,6 @@ codeunit 80000 "HL Shopify Routines"
                 JsObj.Add('sku',Item[1]."No.");
                 If Item[1]."Shopify Selling Option 1" <> '' Then    
                     JsObj.Add('option1',Item[1]."Shopify Selling Option 1");
-                //If Item[1]."Shopify Selling Option 2" <> '' Then    
-                //    JsObj.Add('option2',Item[1]."Shopify Selling Option 2");
                 price := Item[1].Get_Price();
                 JsObj.Add('price',Format(price,0,'<Precision,2><Standard Format,1>'));
                 if Price < Item[1]."Unit Price" then
@@ -516,8 +778,7 @@ codeunit 80000 "HL Shopify Routines"
                 Rel.Setrange("Un Publish Child",False);
                 if Rel.Findset then
                 begin
-                    Check_Product_Structure(Item[1]);
-                    repeat
+                   repeat
                         i+=1;
                         Item[2].Get(Rel."Child Item No.");
                         If GuiAllowed then Wind.Update(2,Item[2]."No.");
@@ -525,8 +786,6 @@ codeunit 80000 "HL Shopify Routines"
                         Clear(Jsobj1);
                         JsObj.Add('sku',Item[2]."No.");
                         JsObj.Add('option1',Item[2]."Shopify Selling Option 1");
-                        //If Item[2]."Shopify Selling Option 2" <> '' Then    
-                        //    JsObj.Add('option2',Item[2]."Shopify Selling Option 2");
                         price := Item[2].Get_Price();
                         JsObj.Add('price',format(price,0,'<Precision,2><Standard Format,1>'));
                         if (Price < Item[2]."Unit Price")  then
@@ -544,14 +803,14 @@ codeunit 80000 "HL Shopify Routines"
                         If (Item[2]."Shopify Product Variant ID" = 0) then
                         begin
                             if i = 1 then
-                            begin;
+                            begin
                                 Clear(Item[2]."Shopify Product ID");
-                                Item[2]."Shopify Product Variant ID" := Item[1]."Shopify Product Variant ID";
-                                Item[2]."Shopify Product Inventory ID" := Item[1]."Shopify Product Inventory ID";
+                                Item[2].validate("Shopify Product Variant ID",Item[1]."Shopify Product Variant ID");
+                                Item[2].validate("Shopify Product Inventory ID",Item[1]."Shopify Product Inventory ID");
                                 Item[2]."Shopify Transfer Flag" := true;  // flag the creation of a new Item variant
                                 Item[2]."Is In Shopify Flag" := True;
                                 Item[2]."Is Child Flag" := True;
-                                Item[2]."CRM Shopify Product ID" := Item[1]."CRM Shopify Product ID";
+                                Item[2].validate("CRM Shopify Product ID",Item[1]."CRM Shopify Product ID");
                                 Clear(Item[2]."Key Info Changed Flag");
                                 Item[2].Modify(false);
                             end
@@ -568,13 +827,13 @@ codeunit 80000 "HL Shopify Routines"
                                 Data.Get('variant',JsToken[1]);
                                 Jstoken[1].SelectToken('id',JsToken[2]);
                                 Clear(Item[2]."Shopify Product ID");
-                                Item[2]."Shopify Product Variant ID" := JsToken[2].AsValue().AsBigInteger();
+                                Item[2].Validate("Shopify Product Variant ID",JsToken[2].AsValue().AsBigInteger());
                                 Jstoken[1].SelectToken('inventory_item_id',JsToken[2]);
-                                Item[2]."Shopify Product Inventory ID" := JsToken[2].AsValue().AsBigInteger();
+                                Item[2].validate("Shopify Product Inventory ID",JsToken[2].AsValue().AsBigInteger());
                                 Item[2]."Shopify Transfer Flag" := true;  // flag the creation of a new Item
                                 Item[2]."Is In Shopify Flag" := True;
                                 Item[2]."Is Child Flag" := True;
-                                Item[2]."CRM Shopify Product ID" := Item[1]."CRM Shopify Product ID";
+                                Item[2].validate("CRM Shopify Product ID",Item[1]."CRM Shopify Product ID");
                                 Clear(Item[2]."Key Info Changed Flag");
                                 item[2].modify(false);
                             end
@@ -589,8 +848,8 @@ codeunit 80000 "HL Shopify Routines"
                             begin
                                 Item[2]."Is Child Flag" := True;
                                 Clear(Item[2]."Key Info Changed Flag");
-                                Item[2]."CRM Shopify Product ID" := Item[1]."CRM Shopify Product ID";
-                                Clear(Item[2]."Shopify Product ID");
+                                Item[2].Validate("CRM Shopify Product ID",Item[1]."CRM Shopify Product ID");
+                                Item[2].validate("Shopify Product ID",0);
                                 item[2].modify(false);
                             end
                             else
@@ -603,145 +862,147 @@ codeunit 80000 "HL Shopify Routines"
             end;
             Commit;
         Until Item[1].next = 0;
-        If GuiAllowed then 
-        begin
-            wind.Close();
-            Wind.open('Updating Shopify Parent    #1##################\'
-                     +'Organising Shopify Child   #2##################');
-        end;
-        Clear(Parms);
-        Item[1].Reset;
+        If GuiAllowed then Wind.Close;
+    end;
+    local procedure Unpublish_Shopify_Items(ItemFilt:Code[20])
+    var
+        Item:Record Item;
+        JsObj:jsonObject;
+        JsObj1:jsonObject;
+        JsArry:jsonArray;
+        Data:JsonObject;
+        JsToken:array[2] of JsonToken;
+        PayLoad:text;
+        Parms:Dictionary of [text,text];
+        wind:Dialog;
+        Log:record "HL Shopify Update Log";
+    begin
+        If GuiAllowed then Wind.open('Unpublishing Shopify Item #1#################');
+        Item.Reset;
+        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
         If Itemfilt <> '' then
-            Item[1].Setrange("No.",ItemFilt);
-        Item[1].Setrange("Is Child Flag",False);
-        Item[1].Setrange("Shopify Item",Item[1]."Shopify Item"::Shopify);
-        If Item[1].findset then
+            Item.Setrange("No.",ItemFilt);
+        Item.Setfilter("Shopify Product ID",'>0');
+        Item.Setrange("Shopify Publish Flag",True);
+        If Item.findset then
         repeat
-            If GuiAllowed then Wind.Update(1,Item[1]."No.");
-            Clear(JsObj);
-            Clear(jsobj1);
-            Clear(JsArry); 
-            Clear(flg);
-            Rel.Reset;
-            Rel.SetCurrentKey("Child Position");
-            Rel.Setrange("Parent Item No.",Item[1]."No.");
-            Rel.Setrange("Update Required",true);
-            Rel.Setrange("Un Publish Child",False);
-            If Rel.findset then
-                If Rel.Count > 1 then
-                repeat
-                    Item[2].Get(Rel."Child Item No.");
-                    If GuiAllowed then Wind.Update(2,Item[2]."No.");
-                    If Item[2]."Shopify Product Variant ID" > 0 then
-                    begin
-                        If Not Flg then
-                        Begin
-                            Item[1]."Shopify Product Variant ID" := Item[2]."Shopify Product Variant ID";
-                            Item[1].Modify(False);
-                        end;    
-                        flg := true;
-                        Clear(Jsobj);
-                        JsObj.Add('id',Item[2]."Shopify Product Variant ID");
-                        JsArry.Add(JsObj.AsToken());
-                    end; 
-                until Rel.next = 0;
-            if Flg then
-            begin
-                Clear(Jsobj);
-                jsObj.Add('variants',JsArry);
-                JsObj.Add('id',Item[1]."Shopify Product ID");
-                JsObj1.add('product',Jsobj);
-                Clear(PayLoad);
-                Clear(Data);
-                JsObj1.WriteTo(PayLoad);
-                If Not Shopify_Data(Paction::PUT,
-                         ShopifyBase + 'products/'+ Format(Item[1]."Shopify Product ID") +'.json'
-                         ,Parms,Payload,Data) then Update_Error_Log(StrSubstNo('Failed to Organise Children of Parent Item %1 Using Product ID %2'
-                                                                    ,Item[1]."No.",Item[1]."Shopify Product ID"));     
-            end;
-            // remove Any parents with no children
-            ItTxt := Item[1]."No.";
-            Item[1].CalcFields("Shopify Child Count");
-            If (Item[1]."Shopify Child Count" = 0) AND Ittxt.StartsWith('PAR-') then
-            begin 
-                if Shopify_Data(Paction::DELETE,ShopifyBase + 'products/' + Format(Item[1]."Shopify Product ID") + '.json'
-                                        ,Parms,PayLoad,Data) then
-                begin                        
-                    Clear_Flags(Item[1]);
-                    // ensure they are not done next time 
-                    Clear(Item[1]."Shopify Item");
-                    Item[1].Modify(False);                              
-                end;
-            end;
-            Rel.Reset;
-            Rel.Setrange("Parent Item No.",Item[1]."No.");
-            If Rel.findset then Rel.ModifyAll("Update Required",false,false);
-        Until Item[1].next = 0;
-        // here we unpublish created items
-        If GuiAllowed then
-        begin 
-            Wind.Close; 
-            Wind.open('Unpublishing Shopify Item #1#################');
-        end;
-        Item[1].Reset;    
-        If Itemfilt <> '' then
-            Item[1].Setrange("No.",ItemFilt);
-        Item[1].Setrange("Shopify Publish Flag",True);
-        Item[1].Setrange("Shopify Item",Item[1]."Shopify Item"::Shopify);
-        Item[1].SetFilter("Shopify Product ID",'>0');
-         If Item[1].findset then
-        repeat
-            If GuiAllowed then Wind.Update(1,Item[1]."No.");
+            If GuiAllowed then Wind.Update(1,Item."No.");
             Clear(Jsobj);
             Clear(Jsobj1);
-            JsObj.Add('id',Item[1]."Shopify Product ID");
-            JsObj.Add('published',false);
+            JsObj.Add('id',Item."Shopify Product ID");
+            JsObj.Add('published',False);
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
             if Not Shopify_Data(Paction::PUT,
-                       ShopifyBase + 'products/'+ Format(Item[1]."Shopify Product ID") + '.json'
+                       ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
                 Update_Error_Log(StrSubstNo('Failed to Unpublish Parent Item %1 Using Product ID %2'
-                                                ,Item[1]."No.",Item[1]."Shopify Product ID"));              
-        until Item[1].Next = 0;
-        If GuiAllowed then
-        begin 
-            Wind.Close; 
-            Wind.open('Refreshing Shopify Item #1#################');
-        end;    
-        // update any changes to titles etc
-        Item[1].Reset;
+                                                ,Item."No.",Item."Shopify Product ID"));              
+        until Item.Next = 0;
+        If GuiAllowed then Wind.Close; 
+    end;
+    procedure Publish_UnPblish_Shopify_Items(ItemFilt:Code[20];PubCtrl:boolean)
+    var
+        Item:Record Item;
+        JsObj:jsonObject;
+        JsObj1:jsonObject;
+        JsArry:jsonArray;
+        Data:JsonObject;
+        JsToken:array[2] of JsonToken;
+        PayLoad:text;
+        Parms:Dictionary of [text,text];
+        wind:Dialog;
+        Log:record "HL Shopify Update Log";
+    begin
+        Item.Reset;
+        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
         If Itemfilt <> '' then
-            Item[1].Setrange("No.",ItemFilt);
-        Item[1].Setrange("Key Info Changed Flag",true);
-        Item[1].Setrange("Shopify Item",Item[1]."Shopify Item"::Shopify);
-        Item[1].SetFilter("Shopify Product ID",'>0');
-        If Item[1].findset then
-        repeat
-            if GuiAllowed Then Wind.Update(1,Item[1]."No.");
+            Item.Setrange("No.",ItemFilt);
+        Item.Setfilter("Shopify Product ID",'>0');
+        If Item.findset then
+        Begin
             Clear(Jsobj);
             Clear(Jsobj1);
-            JsObj.Add('id',Item[1]."Shopify Product ID");
-            JsObj.Add('title',Item[1]."Shopify Title");
+            JsObj.Add('id',Item."Shopify Product ID");
+            JsObj.Add('published',PubCtrl);
+            jsObj1.Add('product',JsObj);
+            JsObj1.WriteTo(PayLoad);
+            if Not Shopify_Data(Paction::PUT,
+                       ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
+                            ,Parms,Payload,Data) then
+                Update_Error_Log(StrSubstNo('Failed to Unpublish Parent Item %1 Using Product ID %2'
+                                                ,Item."No.",Item."Shopify Product ID"));
+            Item."Shopify Publish Flag" := Not PubCtrl;
+            Item.modify(False);
+        end;
+    end;
+    local procedure Update_Shopify_Items_Key_Info(ItemFilt:Code[20])
+    var
+        Item:Record Item;
+        JsObj:jsonObject;
+        JsObj1:jsonObject;
+        JsArry:jsonArray;
+        Data:JsonObject;
+        JsToken:array[2] of JsonToken;
+        PayLoad:text;
+        Parms:Dictionary of [text,text];
+        wind:Dialog;
+        Log:record "HL Shopify Update Log";
+    begin
+        If GuiAllowed then Wind.open('Refreshing Shopify Item #1#################');
+        // update any changes to titles etc
+        Item.Reset;
+        Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
+        If Itemfilt <> '' then
+            Item.Setrange("No.",ItemFilt);
+        Item.Setfilter("Shopify Product ID",'>0');
+        Item.Setrange("Key Info Changed Flag",true);
+        If Item.findset then
+        repeat
+            if GuiAllowed Then Wind.Update(1,Item."No.");
+            Clear(Jsobj);
+            Clear(Jsobj1);
+            JsObj.Add('id',Item."Shopify Product ID");
+            JsObj.Add('title',Item."Shopify Title");
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
             If Shopify_Data(Paction::PUT,
-                       ShopifyBase + 'products/'+ Format(Item[1]."Shopify Product ID") + '.json'
+                       ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
             begin                
-                Clear(Item[1]."Key Info Changed Flag");
-                Item[1].Modify(False);
+                Clear(Item."Key Info Changed Flag");
+                Item.Modify(False);
             end
             else
                 Update_Error_Log(StrSubstNo('Failed to Refresh Key Info for Parent Item %1 Using Product ID %2'
-                                                                    ,Item[1]."No.",Item[1]."Shopify Product ID"));                      
-        until Item[1].Next = 0;
-        If GuiAllowed then Wind.Close;
-        Log.reset;
-        Log.Setfilter("Error Date/Time",'>=%1',CreateDateTime(Today,0T));
-        Exit(Log.Count = 0);   
-    end;     
-     procedure Check_Product_ID(Item:record Item;var Cnt:integer):Text
+                                                                    ,Item."No.",Item."Shopify Product ID"));                      
+        until Item.Next = 0;
+        If GuiAllowed Then Wind.close;
+    end;
+   
+    [TryFunction]
+    procedure Process_Items(ItemFilt:Code[20])
+    var
+        Log:record "HL Shopify Update Log";
+        Setup:record "Sales & Receivables Setup";
+    begin
+        Refresh_Product_Pricing(ItemFilt);
+        Check_Shopify_Child_Structure(ItemFilt);
+        Build_Shopify_Parents(ItemFilt);
+        Build_Shopify_Children(ItemFilt);    
+        Unpublish_Shopify_Items(ItemFilt);
+        Update_Shopify_Items_Key_Info(ItemFilt);
+        Commit;
+        Log.Reset;
+        Log.Setfilter("Error Date/Time",'>=%1',CreateDateTime(Today(),0T));
+        If Log.Findset then
+        begin
+            Setup.get;
+            Send_Email_Msg('Shopify Item Synch Errors','Please check the shopify Update Log it contains errors for todays date','vpacker@practiva.com.au');
+            Send_Email_Msg('Shopify Item Synch Errors','Please check the shopify Update Log it contains errors for todays date',Setup."Shopify Excpt Email Address");
+        end;
+   end;     
+    procedure Check_Product_ID(Item:record Item;var Cnt:integer):Text
     Var 
         Data:JsonObject;
         PayLoad:text;
@@ -843,7 +1104,7 @@ codeunit 80000 "HL Shopify Routines"
                                     break;
                             end;
                         end;
-                        Clear(Item."Shopify Product Variant ID");
+                        Item.validate("Shopify Product Variant ID",0);
                         Clear(Item."Is In Shopify Flag");
                         Item."Shopify Transfer Flag" := true;
                         Item.Modify(False);
@@ -886,9 +1147,9 @@ codeunit 80000 "HL Shopify Routines"
                         begin             
                             Data.Get('variant',JsToken[1]);
                             Jstoken[1].SelectToken('id',JsToken[2]);
-                            Item."Shopify Product Variant ID" := JsToken[2].AsValue().AsBigInteger();
+                            Item.Validate("Shopify Product Variant ID",JsToken[2].AsValue().AsBigInteger());
                             Jstoken[1].SelectToken('inventory_item_id',JsToken[2]);
-                            Item."Shopify Product Inventory ID" := JsToken[2].AsValue().AsBigInteger();
+                            Item.Validate("Shopify Product Inventory ID",JsToken[2].AsValue().AsBigInteger());
                             Item."Shopify Transfer Flag" := true;  // flag the creation of a new Item
                             Item."Is In Shopify Flag" := True;
                             Item."Is Child Flag" := True;
@@ -1023,13 +1284,13 @@ codeunit 80000 "HL Shopify Routines"
                             Rel.Delete();
                             Data.Get('variant',JsToken[1]);
                             Jstoken[1].SelectToken('id',JsToken[2]);
-                            Item[2]."Shopify Product Variant ID" := JsToken[2].AsValue().AsBigInteger();
+                            Item[2].Validate("Shopify Product Variant ID",JsToken[2].AsValue().AsBigInteger());
                             Jstoken[1].SelectToken('inventory_item_id',JsToken[2]);
-                            Item[2]."Shopify Product Inventory ID" := JsToken[2].AsValue().AsBigInteger();
+                            Item[2].Validate("Shopify Product Inventory ID",JsToken[2].AsValue().AsBigInteger());
                             Item[2]."Shopify Transfer Flag" := true;  // flag the creation of a new Item
                             Item[2]."Is In Shopify Flag" := True;
                             Item[2]."Is Child Flag" := True;
-                            Item[2]."CRM Shopify Product ID" := Item[1]."Shopify Product ID";
+                            Item[2].Validate("CRM Shopify Product ID",Item[1]."Shopify Product ID");
                             Item[2].modify(false);
                             // build new parent relation
                             Rel.init;
@@ -1049,13 +1310,13 @@ codeunit 80000 "HL Shopify Routines"
                             begin        
                                 Data.Get('variant',JsToken[1]);
                                 Jstoken[1].SelectToken('id',JsToken[2]);
-                                Item[2]."Shopify Product Variant ID" := JsToken[2].AsValue().AsBigInteger();
+                                Item[2].Validate("Shopify Product Variant ID",JsToken[2].AsValue().AsBigInteger());
                                 Jstoken[1].SelectToken('inventory_item_id',JsToken[2]);
-                                Item[2]."Shopify Product Inventory ID" := JsToken[2].AsValue().AsBigInteger();
+                                Item[2].validate("Shopify Product Inventory ID",JsToken[2].AsValue().AsBigInteger());
                                 Item[2]."Shopify Transfer Flag" := true;  // flag the creation of a new Item
                                 Item[2]."Is In Shopify Flag" := True;
                                 Item[2]."Is Child Flag" := True;
-                                Item[2]."CRM Shopify Product ID" := Item[1]."Shopify Product ID";
+                                Item[2].Validate("CRM Shopify Product ID",Item[1]."Shopify Product ID");
                                 Item[2].modify(false);
                             end;
                         end;
@@ -1078,108 +1339,98 @@ codeunit 80000 "HL Shopify Routines"
                         ,Parms,Payload,Data));
     end;
     //Simple routine to set all the items flags in a clear state
-    local procedure Clear_Flags(var Item:Record Item)
+    local procedure Clear_Flags(var Item:Record Item;Nochg:Boolean)
     begin
-        Clear(Item."Shopify Product ID");
-        Clear(Item."Shopify Product Variant ID");
-        Clear(Item."Shopify Product Inventory ID");
-        Clear(Item."Shopify Location Inventory ID");
+        Item.validate("Shopify Product ID",0);
+        Item.validate("Shopify Product Variant ID",0);
+        Item.validate("Shopify Product Inventory ID",0);
+        Item.validate("Shopify Location Inventory ID",0);
         Item."Shopify Transfer Flag" := True;
         If Item.Type = Item.type::"Non-Inventory" then 
         begin
-            Clear(Item."CRM Shopify Product ID");
-            Item."Shopify Item" := Item."Shopify Item"::internal;
-        end;    
+            Item.validate("CRM Shopify Product ID",0);
+            If Not NoChg then
+                Item."Shopify Item" := Item."Shopify Item"::internal;
+        end; 
+        Clear(Item."Shopify Product Handle");   
         Clear(Item."Shopify Publish Flag");
         Clear(Item."Is In Shopify Flag");
         Item."Shopify Update Flag" := true;
         Item.Modify(false);
     end;
     //routine to remove items from shopify
-    procedure Delete_Items(ItemFilt:Code[20]):Boolean
-    var
-        Item:array[2] of Record Item;
-        Data:JsonObject;
-        PayLoad:text;
-        Parms:Dictionary of [text,text];
-        rel:record "HL Shopify Item Relations";
+    procedure Delete_Items(ItemFilt: Code[20];NoChg:Boolean): Boolean 
+    var Item: array[2]of Record Item;
+    Data: JsonObject;
+    PayLoad: text;
+    Parms: Dictionary of[text, text];
+    rel: record "HL Shopify Item Relations";
     begin
         Item[1].Reset;
-        Item[1].Setrange("No.",ItemFilt);
-        Item[1].Setfilter("Shopify Product ID",'>0');
-        If Item[1].Findset then
-        begin
+        Item[1].Setrange("No.", ItemFilt);
+        Item[1].Setfilter("Shopify Product ID", '>0');
+        If Item[1].Findset then begin
             Clear(Data);
             Clear(PayLoad);
             Clear(Parms);
-            if Shopify_Data(Paction::DELETE,ShopifyBase + 'products/' 
-                        + Format(Item[1]."Shopify Product ID") + '.json'
-                         ,Parms,PayLoad,Data) then
-            begin
-                Clear_Flags(Item[1]);
+            if Shopify_Data(Paction::DELETE, ShopifyBase + 'products/' + Format(Item[1]."Shopify Product ID") + '.json', Parms, PayLoad, Data)then begin
+                Clear_Flags(Item[1],NoChg);
                 // see if we have some children
                 Rel.Reset;
-                rel.Setrange("Parent Item No.",Item[1]."No.");
-                If Rel.findset then
-                repeat
-                    if Item[2].Get(Rel."Child Item No.") then Clear_Flags(Item[2]);
+                rel.Setrange("Parent Item No.", Item[1]."No.");
+                If Rel.findset then 
+                repeat 
+                    if Item[2].Get(Rel."Child Item No.") then Clear_Flags(Item[2],NoChg);
                 until rel.next = 0;
             end;
-            Check_Delete_By_Title(Item[1]);
-            Clear_Flags(Item[1]);
-            Commit;    
+            Check_Delete_By_Handle(Item[1],NoChg);
+            Clear_Flags(Item[1],NoChg);
+            Commit;
             exit(true);
-        end;    
+        end;
         exit(true);
     end;
     //extra precautionary delete mechanism to ensure removal of product from shopify
-    local procedure Check_Delete_By_Title(var Item:record Item)
-    var
-        Data:JsonObject;
-        JsToken:array[2] of JsonToken;
-        JsArry:jsonArray;
-        PayLoad:text;
-        Parms:Dictionary of [text,text];
-        Item2:Record Item;
-        rel:record "HL Shopify Item Relations";
-        Flg:Boolean;
-        i:integer;
+    local procedure Check_Delete_By_Handle(var Item: record Item;NoChg:Boolean)var Data: JsonObject;
+    JsToken: array[2]of JsonToken;
+    JsArry: jsonArray;
+    PayLoad: text;
+    Parms: Dictionary of[text, text];
+    Item2: Record Item;
+    rel: record "HL Shopify Item Relations";
+    Flg: Boolean;
+    i: integer;
     begin
-        If Strlen(Item."Shopify Title") > 0 then
+        If Strlen(Item."Shopify Product Handle") > 0 then 
         begin
             Clear(Flg);
             Clear(Parms);
             Clear(Data);
             Clear(PayLoad);
-            Parms.Add('fields','id');
-            Parms.Add('title',Item."Shopify Title".Replace('&','%26'));
-            if Shopify_Data(Paction::GET,ShopifyBase + 'products.json'
-                         ,Parms,PayLoad,Data) then
+            Parms.Add('fields', 'id');
+            Parms.Add('handle', Item."Shopify Product Handle");
+            if Shopify_Data(Paction::GET, ShopifyBase + 'products.json', Parms, PayLoad, Data) then 
             begin
-                Data.Get('products',JsToken[1]);
-                JsArry := JsToken[1].AsArray();
-                for i := 0 to JsArry.Count - 1 do
+                Data.Get('products', JsToken[1]);
+                JsArry:=JsToken[1].AsArray();
+                for i:=0 to JsArry.Count - 1 do 
                 begin
                     Clear(Parms);
-                    JsArry.get(i,JsToken[1]);
-                    jstoken[1].SelectToken('id',JsToken[2]);
-                    If Shopify_Data(Paction::DELETE,ShopifyBase + 'products/' 
-                                    + JsToken[2].AsValue().AsText() + '.json'
-                                    ,Parms,PayLoad,Data) then
-                    Begin              
-                        Clear_Flags(Item);
+                    JsArry.get(i, JsToken[1]);
+                    jstoken[1].SelectToken('id', JsToken[2]);
+                    If Shopify_Data(Paction::DELETE, ShopifyBase + 'products/' + JsToken[2].AsValue().AsText() + '.json', Parms, PayLoad, Data)then Begin
+                        Clear_Flags(Item,NoChg);
                         Rel.Reset;
-                        rel.Setrange("Parent Item No.",Item."No.");
-                        If Rel.findset then
-                        repeat
-                            Item2.Get(Rel."Child Item No.");
-                            Clear_Flags(Item2);
+                        rel.Setrange("Parent Item No.", Item."No.");
+                        If Rel.findset then 
+                        repeat Item2.Get(Rel."Child Item No.");
+                                Clear_Flags(Item2,Nochg);
                         until rel.next = 0;
-                    end;    
+                    end;
                 end;
-            end;    
+            end;
             Commit;
-        end;        
+        end;
     end;
     // routine to compare BC product ID's with Shopify ID's 
     // and remove any shopify products that BC does not know about
@@ -1320,7 +1571,7 @@ codeunit 80000 "HL Shopify Routines"
             Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
             Item.findset;
             repeat
-                Clear_Flags(Item);
+                Clear_Flags(Item,false);
             until Item.next = 0;    
         end;            
     end;     
@@ -1360,7 +1611,7 @@ codeunit 80000 "HL Shopify Routines"
         Ordhdr.Reset;
         OrdHdr.SetRange("Order Status",Ordhdr."Order Status"::Open);
         If OrdId <> 0 then OrdHdr.Setrange(ID,OrdId);
-        OrdHdr.Setrange("Order Type",OrdHdr."Order Type"::CreditMemo);
+        OrdHdr.Setrange("Order Type",OrdHdr."Order Type"::CreditMemo,OrdHdr."Order Type"::Cancelled);
         If OrdHdr.Findset then
         repeat
             Excp.Reset;
@@ -1507,32 +1758,10 @@ codeunit 80000 "HL Shopify Routines"
             Excp.Reset;
             Excp.Setrange(ShopifyID,OrdHdr.ID);
             If Excp.Findset then Excp.Deleteall();
-            Clear(HasOther);
-            Clear(DisTot);
-            // fix all the non NPF Types
-            OrdLine[1].Reset;
-            Ordline[1].SetRange("ShopifyID",OrdHdr.ID);
-            Ordline[1].Setfilter("Item No.",'<>%1','');
-            OrdLine[1].Setrange("Is NPF Item",False);
-            OrdLine[1].Setfilter("order Qty",'>0');
-            If OrdLine[1].Findset then
-            begin
-                HasOther := True;
-                Ordline[1].CalcSums("Order Qty","Base Amount","Discount Amount");
-                DisTot := OrdLine[1]."Discount Amount";
-                OrdHdr."Order Total" := OrdLine[1]."Base Amount" - DisTot;
-                repeat
-                    OrdLine[1]."NPF Shipment Qty" := OrdLine[1]."Order Qty";
-                    OrdLine[1]."Location Code" := 'NSW';
-                    Item.Get(Ordline[1]."Item No.");
-                    Ordline[1]."Unit Of Measure" := Item."Base Unit of Measure";    
-                    OrdLine[1].Modify(False);
-                until OrdLine[1].next = 0;
-            end;              
             // now do all the NPF types
             OrdLine[1].Reset;
             Ordline[1].SetRange(ShopifyID,OrdHdr.ID);
-            OrdLine[1].SetFilter("Location Code",'=%1','');
+            OrdLine[1].SetRange("Location Code",'');
             Ordline[1].Setfilter("Item No.",'<>%1','');
             OrdLine[1].Setrange("Is NPF Item",True);
             OrdLine[1].Setfilter("order Qty",'>0');
@@ -1647,61 +1876,6 @@ codeunit 80000 "HL Shopify Routines"
                                 until OrdLine[1].next = 0;
                             end;
                         end;
-                         //check to make sure some lines are processed
-                        OrdLine[1].Reset;
-                        Ordline[1].SetRange(ShopifyID,OrdHdr.ID);
-                        Ordline[1].Setfilter("Item No.",'<>%1','');
-                        OrdLine[1].Setrange("Is NPF Item",True);
-                        OrdLine[1].Setfilter("order Qty",'>0');
-                        If OrdLine[1].Findset then
-                        begin
-                            Ordline[1].CalcSums("Order Qty","NPF Shipment Qty","Base Amount","Discount Amount");
-                            //see if order total has other lines then we add to this amount;
-                            If HasOther then
-                                OrdHdr."Order Total" += OrdLine[1]."Base Amount" - OrdLine[1]."Discount Amount" + OrdHdr."Freight Total"
-                            else
-                                OrdHdr."Order Total" := OrdLine[1]."Base Amount" - OrdLine[1]."Discount Amount" + OrdHdr."Freight Total";
-                            If Ordline[1]."Order Qty" <> Ordline[1]."NPF Shipment Qty" then
-                            begin
-                                // see if we have more than one line order
-                                If OrdLine[1].Count > 1 then
-                                begin
-                                    // makes sure all the discounts relate to the order lines and
-                                    //not to the order as well
-                                    Ordline[1].CalcSums("Discount Amount");
-                                    If OrdHdr."Discount Total" = OrdLine[1]."Discount Amount" + DisTot then
-                                    begin
-                                        OrdLine[1].SetRange("NPF Shipment Qty",0);
-                                        If OrdLine[1].FindSet() then
-                                        begin
-                                            Ordline[1].CalcSums("Base Amount","Discount Amount");
-                                            OrdHdr."Order Total" -= OrdLine[1]."Base Amount" - OrdLine[1]."Discount Amount";
-                                            OrdHdr."Discount Total" -= OrdLine[1]."Discount Amount";
-                                            OrdHdr.modify();
-                                            OrdLine[1].ModifyAll("Not Supplied",True);     
-                                        end;                                                                    
-                                    end    
-                                    else
-                                    begin
-                                        Excp.init;
-                                        Clear(Excp.ID);
-                                        Excp.insert;
-                                        Excp.ShopifyID := OrdHdr.ID;
-                                        Excp.Exception := StrsubStno('Unable to Correct Order as an Order discount also applies'); 
-                                        excp.Modify();
-                                    end;
-                                end
-                                else
-                                begin
-                                    Excp.init;
-                                    Clear(Excp.ID);
-                                    Excp.insert;
-                                    Excp.ShopifyID := OrdHdr.ID;
-                                    Excp.Exception := StrsubStno('NPF -> Unable to Correct Order as there is only one line and it''s missing.'); 
-                                    excp.Modify();
-                                end;
-                            end;
-                        end;    
                     end
                     else
                     begin
@@ -1714,15 +1888,29 @@ codeunit 80000 "HL Shopify Routines"
                     end;
                 end
                 else
-                begin
+                Begin
                     Excp.init;
                     Clear(Excp.ID);
                     Excp.insert;
                     Excp.ShopifyID := OrdHdr.ID;
-                    Excp.Exception := 'Failed to retrieve Shopify Order ID ' + Format(OrdHdr."Shopify Order ID") +' via NPF Shipments API';
+                    Excp.Exception := 'NPF -> Failed to retrieve Shipment Information List For Order';
                     excp.Modify();
                 end;
-            end;    
+            end;
+            // now whatever is left we assign to the QC location
+            OrdLine[1].Reset;
+            Ordline[1].SetRange("ShopifyID",OrdHdr.ID);
+            Ordline[1].Setfilter("Item No.",'<>%1','');
+            OrdLine[1].Setrange("Location Code",'');
+            OrdLine[1].Setfilter("order Qty",'>0');
+            If OrdLine[1].Findset then
+            repeat
+                OrdLine[1]."NPF Shipment Qty" := OrdLine[1]."Order Qty";
+                OrdLine[1]."Location Code" := 'QC';
+                If Item.Get(Ordline[1]."Item No.") then
+                    Ordline[1]."Unit Of Measure" := Item."Base Unit of Measure";    
+                OrdLine[1].Modify(False);
+            until OrdLine[1].next = 0;
             If RecCnt > 50 then
             begin
                 Clear(RecCnt);
@@ -1852,11 +2040,212 @@ codeunit 80000 "HL Shopify Routines"
         exit(Exflg)
     End;
      // Routine To Call Shopify and fetch the orders
-    procedure Get_Shopify_Orders(StartIndex:BigInteger):Boolean
+    local procedure Check_For_Super_Pharmacy_Orders(PJstoken:JsonToken):Boolean
     var
-        OrdHdr:record "HL Shopify Order Header";
+        RetVal:Boolean;
+        Jstoken:JsonToken;
+    begin
+        PJstoken.SelectToken('fulfillment_status',Jstoken);
+        If Not JsToken.asvalue.IsNull then Exit(True);
+        if PJstoken.SelectToken('tags',Jstoken) then
+            If Not JsToken.asvalue.IsNull then
+                If Jstoken.AsValue().AsText().ToUpper().Contains('DONOTFULFIL') then
+                    Exit(true);
+        exit(False);
+    end;
+    local procedure Get_Order_Reconciliation_Transactions(var OrdRec:record "HL Order Reconciliations")
+    var
+        Parms:Dictionary of [text,text];
+        Data:JsonObject;
+        PayLoad:text;
+        JsArry:JsonArray;
+        JsToken:array[3] of JsonToken;
+        i:integer;
+        PayGate:Text;
+    Begin
+        OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::Misc;
+        Clear(OrdRec."Order Total");
+        Clear(OrdRec."Reference No");
+        Clear(Parms);
+        if Shopify_Data(Paction::GET,ShopifyBase + 'orders/' + Format(OrdRec."Shopify Order ID") + '/transactions.json'
+                                     ,Parms,PayLoad,Data) then
+        begin                             
+            If Data.Get('transactions',JsToken[1]) then
+            begin
+                JsArry := JsToken[1].AsArray();
+                If JsArry.Count > 0 then
+                    For i := 0 to Jsarry.Count - 1 do
+                    Begin     
+                        JsArry.get(i,JsToken[1]);
+                        JsToken[1].SelectToken('kind',JsToken[2]); 
+                        If JsToken[2].AsValue().AsText().ToUpper().Contains('SALE') then
+                        begin
+                            Jstoken[1].SelectToken('status',JsToken[2]);
+                            If (JsToken[2].AsValue().AsText().ToUpper() = 'SUCCESS') then
+                            begin
+                                JsToken[1].SelectToken('amount',JsToken[2]);
+                                OrdRec."Order Total" += JsToken[2].AsValue().AsDecimal();
+                                JsToken[1].SelectToken('gateway',JsToken[2]);
+                                If not Jstoken[2].AsValue().IsNull then
+                                begin
+                                    PayGate := CopyStr(JsToken[2].AsValue().AsText(),1,25).ToUpper();
+                                    If PayGate.Contains('SHOPIFY') then
+                                        OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::"Shopify Pay"
+                                    else If PayGate.Contains('PAYPAL') then
+                                        OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::Paypal
+                                    else If PayGate.Contains('AFTER') then
+                                        OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::AfterPay
+                                    else If PayGate.Contains('ZIP') then
+                                        OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::Zip;
+                                end;
+                                if JsToken[1].SelectToken('source_name',JsToken[2]) then
+                                    If not Jstoken[2].AsValue().IsNull then
+                                        OrdRec."Reference No" := CopyStr(JsToken[2].AsValue().AsText(),1,25);    
+                                if JsToken[1].SelectToken('receipt',JsToken[2]) then
+                                begin
+                                    If JsToken[2].SelectToken('transaction_id',JsToken[3]) then
+                                    begin
+                                        If not Jstoken[3].AsValue().IsNull then
+                                            OrdRec."Reference No" := CopyStr(JsToken[3].AsValue().AsText(),1,25)
+                                    end        
+                                    else if JsToken[2].SelectToken('payment_id',JsToken[3]) then
+                                    begin
+                                        If not Jstoken[3].AsValue().IsNull then
+                                            OrdRec."Reference No" := CopyStr(JsToken[3].AsValue().AsText(),1,25)
+                                    end        
+                                    else if JsToken[2].SelectToken('x_reference',JsToken[3]) then
+                                    begin
+                                        If not Jstoken[3].AsValue().IsNull then
+                                            OrdRec."Reference No" := CopyStr(JsToken[3].AsValue().AsText(),1,25)
+                                    end        
+                                    else if JsToken[2].SelectToken('token',JsToken[3]) then
+                                    begin
+                                        If not Jstoken[3].AsValue().IsNull then
+                                            OrdRec."Reference No" := CopyStr(JsToken[3].AsValue().AsText(),1,25)
+                                    end        
+                                    else if JsToken[2].SelectToken('gift_card_id',JsToken[3]) then
+                                    Begin
+                                        If not Jstoken[3].AsValue().IsNull then
+                                            OrdRec."Reference No" := CopyStr(JsToken[3].AsValue().AsText(),1,25);
+                                    end;               
+                                end;
+                            end;
+                        end;                    
+                end;
+            end;
+        end;                  
+        If OrdRec."Reference No" = '' then
+        begin
+            Clear(Data);
+            Clear(Parms);
+            Parms.Add('fields','note,source_name,total_shipping_price_set,total_price');
+            if Shopify_Data(Paction::GET,ShopifyBase + 'orders/' + Format(OrdRec."Shopify Order ID") + '.json'
+                                    ,Parms,PayLoad,Data) then
+            begin
+                If Data.Get('order',JsToken[1]) then
+                begin
+                    If Jstoken[1].SelectToken('total_price',Jstoken[2]) then
+                        If Not JsToken[2].AsValue().IsNull then
+                                OrdRec."Order Total" := JsToken[2].AsValue().AsDecimal();
+                    If JsToken[1].SelectToken('source_name',JsToken[2]) then
+                        If not Jstoken[2].AsValue().IsNull then
+                            If JsToken[2].AsValue().AsText().ToUpper().Contains('MARKET') then
+                            begin
+                                OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::MarketPlace; 
+                                If JsToken[1].SelectToken('note',JsToken[2]) then
+                                    If not Jstoken[2].AsValue().IsNull then
+                                        OrdRec."Reference No" := CopyStr(Extract_MarketPlace_Invoice_Number(JsToken[2].AsValue().AsText()),1,25);
+                            end 
+                            else
+                                OrdRec."Reference No" := CopyStr(JsToken[2].AsValue().AsText(),1,25);            
+                end;
+            end;
+        end;
+    end;
+    local procedure Build_Order_Reconciliation(var JsRefToken:JsonToken;CFlg:Boolean)
+    var
+        OrdRec:array[2] of record "HL Order Reconciliations";
+        Jstoken:array[2] of JsonToken;
+        JsArry:array[2] of JsonArray;
+        Dat:text;
+        i,j:integer;
+        Flg:Boolean;
+        InvFlg:Boolean;
+    begin
+        Clear(InvFlg);
+        JsReftoken.SelectToken('id',Jstoken[2]);
+        If Cflg then
+        begin
+            Flg := Not OrdRec[1].Get(Jstoken[2].AsValue().AsBigInteger(),Ordrec[1]."Shopify Order Type"::Cancelled);
+            InvFlg := OrdRec[1].Get(Jstoken[2].AsValue().AsBigInteger(),Ordrec[1]."Shopify Order Type"::Invoice);
+        end    
+        else
+        Begin
+            Flg := Not OrdRec[1].Get(Jstoken[2].AsValue().AsBigInteger(),Ordrec[1]."Shopify Order Type"::Invoice);
+            // saftey to ensure the cancelled is not there already
+            If Flg then
+                Flg := Not OrdRec[1].Get(Jstoken[2].AsValue().AsBigInteger(),Ordrec[1]."Shopify Order Type"::Cancelled);
+        end;
+        If Flg Then
+        begin
+            // see if we have the invoice but need to change it to Cancelled
+            If InvFlg then 
+                OrdRec[1].Delete();
+            OrdRec[1].Init();
+            OrdRec[1]."Shopify Order ID" := Jstoken[2].AsValue().AsBigInteger();
+            OrdRec[1]."Shopify Display ID" := Jstoken[2].AsValue().AsBigInteger();
+            OrdRec[1]."Shopify Order Type" := OrdRec[1]."Shopify Order Type"::Invoice;
+            If CFlg then
+                OrdRec[1]."Shopify Order Type" := OrdRec[1]."Shopify Order Type"::Cancelled;
+            OrdRec[1].insert;
+        end;    
+        JsReftoken.SelectToken('order_number',Jstoken[2]);
+        OrdRec[1]."Shopify Order No" := Jstoken[2].AsValue().AsBigInteger();
+        If JsReftoken.SelectToken('processed_at',Jstoken[2]) then
+            if Not JsToken[2].AsValue().IsNull then
+            begin
+                Dat:= Copystr(Jstoken[2].AsValue().astext,1,10);
+                if Evaluate(OrdRec[1]."Shopify Order Date",Copystr(Dat,9,2) + '/' + Copystr(Dat,6,2) + '/' + Copystr(Dat,1,4)) then;
+            end;    
+        Get_Order_Reconciliation_Transactions(OrdRec[1]);
+        OrdRec[1].Modify();
+        If JsRefToken.SelectToken('refunds',JsToken[2]) then
+        Begin
+            OrdRec[2].Copy(OrdRec[1]);
+            OrdRec[2]."Shopify Order Type" := OrdRec[2]."Shopify Order Type"::Refund;
+            Clear(OrdRec[2]."Order Total");
+            JsArry[1] := JsToken[2].AsArray();
+            If JsArry[1].Count > 0 then
+                For i := 0 to JsArry[1].Count - 1 do
+                begin
+                    JsArry[1].get(i,JsToken[1]);
+                    Jstoken[1].SelectToken('processed_at',Jstoken[2]);
+                    if Not JsToken[2].AsValue().IsNull then
+                    begin
+                        Dat:= Copystr(Jstoken[2].AsValue().astext,1,10);
+                        if Evaluate(OrdRec[2]."Shopify Order Date",Copystr(Dat,9,2) + '/' + Copystr(Dat,6,2) + '/' + Copystr(Dat,1,4)) then;
+                    end;    
+                    JsToken[1].SelectToken('transactions',JsToken[2]);
+                    JsArry[2] := JsToken[2].AsArray();
+                    For j := 0 to JsArry[2].Count - 1 do
+                    begin
+                        JsArry[2].get(j,JsToken[1]);
+                        if JsToken[1].SelectToken('amount',Jstoken[2]) then
+                            If not Jstoken[2].AsValue().IsNull then
+                                OrdRec[2]."Order Total" += Jstoken[2].AsValue().AsDecimal();
+                    end;
+                end;
+            If OrdRec[2]."Order Total" > 0 then    
+                If Not OrdRec[1].Get(OrdRec[2]."Shopify Order ID",OrdRec[2]."Shopify Order Type") then
+                    OrdRec[2].Insert;
+        end;
+        Commit;    
+    end;
+    procedure Get_Shopify_Orders(StartIndex:BigInteger;EndOrderNo:BigInteger):Boolean
+    var
+        OrdHdr:Array[2] of record "HL Shopify Order Header";
         OrdApp:record "HL Shopfiy Order Applications";
-        OrdLine:record "HL Shopify Order Lines";
+        OrdLine:Array[2] of record "HL Shopify Order Lines";
         indx:BigInteger;
         Parms:Dictionary of [text,text];
         Data:JsonObject;
@@ -1875,6 +2264,7 @@ codeunit 80000 "HL Shopify Routines"
         ItemUnit:record "Item Unit of Measure";
         DimVal:record "Dimension Value";
         Startdate:date;
+        CancelFlg:boolean;    
     begin
         if Not Item.Get('GIFT_CARD') then
         begin
@@ -1905,20 +2295,20 @@ codeunit 80000 "HL Shopify Routines"
         Setup.Get;
         Clear(indx);
         Clear(Cnt);
-        OrdHdr.Reset;
-        OrdHdr.SetCurrentKey("Shopify Order No.");
-        if OrdHdr.findlast then Startdate := OrdHdr."Shopify Order Date";
-        OrdHdr.Reset;
-        OrdHdr.SetCurrentKey("Shopify Order No.");
+        OrdHdr[1].Reset;
+        OrdHdr[1].SetCurrentKey("Shopify Order No.");
+        if OrdHdr[1].findlast then Startdate := OrdHdr[1]."Shopify Order Date";
+        OrdHdr[1].Reset;
+        OrdHdr[1].SetCurrentKey("Shopify Order No.");
         Case Date2DWY(today,1) of
-            2,4: OrdHdr.Setfilter("Shopify Order Date",'<=%1',CalcDate('-5D',Startdate));
-            6: OrdHdr.Setfilter("Shopify Order Date",'<=%1',CalcDate('-3W',Startdate));
+            2,4: OrdHdr[1].Setfilter("Shopify Order Date",'<=%1',CalcDate('-5D',Startdate));
+            6: OrdHdr[1].Setfilter("Shopify Order Date",'<=%1',CalcDate('-3W',Startdate));
         end;    
-        if OrdHdr.findlast then Indx := OrdHdr."Shopify Order No."; 
-        OrdHdr.Reset;
-        OrdHdr.SetFilter("Shopify Order No.",'>=%1',Indx);
-        If OrdHdr.FindFirst() then 
-            Indx := OrdHdr."Shopify Order ID"
+        if OrdHdr[1].findlast then Indx := OrdHdr[1]."Shopify Order No."; 
+        OrdHdr[1].Reset;
+        OrdHdr[1].SetFilter("Shopify Order No.",'>=%1',Indx);
+        If OrdHdr[1].FindFirst() then 
+            Indx := OrdHdr[1]."Shopify Order ID"
         else
             Clear(Indx);        
         If StartIndex <> 0 then indx := StartIndex;
@@ -1934,7 +2324,7 @@ codeunit 80000 "HL Shopify Routines"
         Parms.add('status','any');
         Parms.Add('limit','250');
         Parms.Add('fields','id,cancelled_at,fulfillment_status,order_number,discount_applications,line_items,processed_at'
-                +',currency,total_discounts,total_shipping_price_set,financial_status,total_price,total_tax');
+                +',currency,total_discounts,total_shipping_price_set,financial_status,total_price,total_tax,tags,refunds');
         if Not Shopify_Data(Paction::GET,ShopifyBase + 'orders/count.json'
                                         ,Parms,PayLoad,Data) then Exit(false);
         Data.Get('count',JsToken[1]);
@@ -1950,264 +2340,277 @@ codeunit 80000 "HL Shopify Routines"
                 for i := 0 to JsArry[1].Count - 1 do
                 begin
                     JsArry[1].get(i,Jstoken[1]);
+                    Flg := True;
                     if Jstoken[1].SelectToken('order_number',Jstoken[2]) then
                         If Not JsToken[2].asvalue.IsNull then
+                        begin
                             if GuiAllowed then Win.Update(1,Jstoken[2].AsValue().AsBigInteger());
+                            If (EndOrderNo > 0) and (Jstoken[2].AsValue().AsBigInteger() >= EndOrderNo) then
+                            begin    
+                                Clear(Flg);
+                                Clear(Cnt);
+                            end;
+                        end;    
                     Clear(Indx);
-                    Flg := Jstoken[1].SelectToken('id',Jstoken[2]);
+                    If Flg Then Flg := Jstoken[1].SelectToken('id',Jstoken[2]);
                     If Flg Then Flg := Not Jstoken[2].AsValue().IsNull;
-                    If Flg then 
-                    begin
-                        Indx := Jstoken[2].AsValue().AsBigInteger();
-                        OrdHdr.Reset;
-                        OrdHdr.Setrange("Shopify Order ID",indx);
-                        Ordhdr.Setrange("Order Type",OrdHdr."Order Type"::Invoice);
-                        Flg := Not OrdHdr.findset;
-                    end;    
+                    Indx := Jstoken[2].AsValue().AsBigInteger();
                     If Flg then Flg := Jstoken[1].SelectToken('cancelled_at',Jstoken[2]);
-                    if Flg then Flg := Jstoken[2].AsValue().IsNull;
+                    If Flg then CancelFlg := Not Jstoken[2].AsValue().IsNull; 
                     if Flg Then Flg := Jstoken[1].SelectToken('financial_status',Jstoken[2]);
                     if Flg Then Flg := Not Jstoken[2].AsValue().IsNull;
                     If Flg then Flg := Jstoken[2].AsValue().AsText().ToUpper() in ['PAID','REFUNDED','PARTIALLY_REFUNDED'];
                     If Flg then Flg := Jstoken[1].SelectToken('fulfillment_status',Jstoken[2]);
+                    If Flg Then
+                    Begin
+                        Build_Order_Reconciliation(Jstoken[1],CancelFlg);
+                        IF Not CancelFlg then Flg := Check_For_Super_Pharmacy_Orders(JsToken[1]);
+                    end;    
                     if Flg Then Flg := Check_For_Gift_Card(jstoken[1],indx);
                     If Flg then
                     begin
-                        OrdhdrEX.Init;
-                        OrdHdrEX."Order Type" := OrdHdrEx."Order Type"::Invoice;
-                        OrdHdrEX."Shopify Order ID" := indx;
-                        Get_Order_Transactions(OrdHdrEX);
-                        //credit note is allowed with null fulfillment status invoies no
-                        If (OrdHdrEx."Order Type" = OrdHdrEx."Order Type"::Invoice) 
-                            AND JsToken[2].AsValue().Isnull() then 
-                                Clear(Flg);    
+                        OrdHdr[1].Reset;
+                        OrdHdr[1].Setrange("Shopify Order ID",indx);
+                        OrdHdr[1].SetFilter("Order Type",'%1|%2',OrdHdr[1]."Order Type"::Invoice,OrdHdr[1]."Order Type"::Cancelled);
+                        Flg := not OrdHdr[1].Findset;
                     end;
                     If Flg then 
                     begin
-                        OrdHdr.Reset;
-                        OrdHdr.Setrange("Shopify Order ID",indx);
-                        OrdHdr.Setrange("Order Type",OrdHdrEx."Order Type");
-                        If not OrdHdr.Findset then
-                        begin
-                            OrdHdr.init;
-                            Clear(OrdHdr.ID);
-                            OrdHdr.insert(True);
-                            OrdHdr."Shopify Order Status" := Status;
-                            OrdHdr."Order Type" := OrdHdrEX."Order Type";
-                            OrdHdr."Shopify Order ID" := indx;
-                            OrdHdr."Payment Gate Way" := OrdHdrEX."Payment Gate Way";
-                            OrdHdr."Processed Date" := OrdhdrEX."Processed Date";
-                            OrdHdr."Processed Time" := OrdHdrEx."Processed Time";
-                            OrdHdr."Proc Time" := OrdHdrEx."Proc Time";
-                            OrdHdr."Reference No" := OrdHdrEx."Reference No";
-                            OrdHdr."Gift Card Total" := OrdhdrEX."Gift Card Total";
-                            if GuiAllowed then Win.Update(3,Format(OrdHdr."Order Type"));
-                            Jstoken[1].SelectToken('financial_status',Jstoken[2]);
-                            OrdHdr."Shopify Financial Status" := Jstoken[2].AsValue().Astext().ToUpper();
+                        OrdHdr[1].init;
+                        Clear(OrdHdr[1].ID);
+                        OrdHdr[1].insert(True);
+                        OrdHdr[1]."Order Type" := OrdHdr[1]."Order Type"::Invoice;
+                        OrdHdr[1]."Shopify Order ID" := indx;
+                        Jstoken[1].SelectToken('financial_status',Jstoken[2]);
+                        OrdHdr[1]."Shopify Financial Status" := Jstoken[2].AsValue().Astext().ToUpper();
+                        Ordhdr[1]."Shopify Order Status" := 'FULFILLED';
+                        If CancelFlg then
+                        Begin
+                            OrdHdr[1]."Order Type" := OrdHdr[1]."Order Type"::Cancelled;
+                            OrdHdr[1]."Refunds Checked" := true;
+                        end    
+                        else
+                        Begin
                             Jstoken[1].SelectToken('fulfillment_status',Jstoken[2]);
-                            Ordhdr."Shopify Order Status" := 'FULFILLED';
-                            If Not Jstoken[2].AsValue().IsNull then
+                            If Not Jstoken[2].Asvalue.Isnull then
                                 If Jstoken[2].AsValue().Astext().ToUpper() = 'PARTIAL' then
-                                    OrdHdr."Shopify Order Status" := 'PARTIAL';
-                            if Jstoken[1].SelectToken('order_number',Jstoken[2]) then
-                                If Not JsToken[2].asvalue.IsNull then
-                                begin
-                                    OrdHdr."Shopify Order No." := Jstoken[2].AsValue().AsBigInteger();
-                                    if GuiAllowed then Win.Update(2,Jstoken[2].AsValue().AsBigInteger());
-                                end;    
-                            if Jstoken[1].SelectToken('processed_at',Jstoken[2]) then
-                                If Not JsToken[2].AsValue().IsNull then
-                                begin
-                                    Dat:= Copystr(Jstoken[2].AsValue().astext,1,10);
-                                    if Evaluate(OrdHdr."Shopify Order Date",Copystr(Dat,9,2) + '/' + Copystr(Dat,6,2) + '/' + Copystr(Dat,1,4)) then;
-                                end;    
-                            if Jstoken[1].SelectToken('currency',Jstoken[2]) then
-                                If Not JsToken[2].AsValue().IsNull then
-                                    OrdHdr."Shopify Order Currency" := CopyStr(Jstoken[2].AsValue().AsCode(),1,10);
-                            If Jstoken[1].SelectToken('total_discounts',Jstoken[2]) then
-                                If Not JsToken[2].AsValue().IsNull then
-                                    OrdHdr."Discount Total" := JsToken[2].AsValue().AsDecimal();
-                            if Jstoken[1].SelectToken('total_price',Jstoken[2]) then
-                                If Not JsToken[2].AsValue().IsNull then
-                                    OrdHdr."Order Total" := JsToken[2].AsValue().AsDecimal();
-                            If Jstoken[1].SelectToken('total_shipping_price_set',Jstoken[2]) then
-                                If Jstoken[2].AsObject().SelectToken('shop_money',JsToken[1]) then
-                                    If Jstoken[1].Asobject().SelectToken('amount',Jstoken[2]) then
-                                        If Not JsToken[2].AsValue().IsNull then
-                                            OrdHdr."Freight Total" := JsToken[2].AsValue().AsDecimal();
-                            if Jstoken[1].SelectToken('total_tax',Jstoken[2]) then
-                                if not Jstoken[2].AsValue().IsNull then
-                                    OrdHdr."Tax Total" := JsToken[2].AsValue().AsDecimal();
-                            Ordhdr.Modify();
-                            RecCnt += 1;
-                            if JsArry[1].get(i,Jstoken[1]) Then
+                                    OrdHdr[1]."Shopify Order Status" := 'PARTIAL';
+                        end;            
+                        if Jstoken[1].SelectToken('order_number',Jstoken[2]) then
+                            If Not JsToken[2].asvalue.IsNull then
                             begin
-                                If Jstoken[1].SelectToken('discount_applications',Jstoken[2]) then
-                                    If JsToken[2].AsArray().Count > 0 then
+                                OrdHdr[1]."Shopify Order No." := Jstoken[2].AsValue().AsBigInteger();
+                                if GuiAllowed then
+                                begin 
+                                    Win.Update(2,OrdHdr[1]."Shopify Order No.");
+                                    Win.Update(3,Format(OrdHdr[1]."Order Type"));
+                                end;    
+                            end;    
+                        if Jstoken[1].SelectToken('processed_at',Jstoken[2]) then
+                            If Not JsToken[2].AsValue().IsNull then
+                            begin
+                                Dat:= Copystr(Jstoken[2].AsValue().astext,1,10);
+                                if Evaluate(OrdHdr[1]."Shopify Order Date",Copystr(Dat,9,2) + '/' + Copystr(Dat,6,2) + '/' + Copystr(Dat,1,4)) then;
+                            end;    
+                        if Jstoken[1].SelectToken('currency',Jstoken[2]) then
+                            If Not JsToken[2].AsValue().IsNull then
+                                OrdHdr[1]."Shopify Order Currency" := CopyStr(Jstoken[2].AsValue().AsCode(),1,10);
+                        If Jstoken[1].SelectToken('total_discounts',Jstoken[2]) then
+                            If Not JsToken[2].AsValue().IsNull then
+                                OrdHdr[1]."Discount Total" := JsToken[2].AsValue().AsDecimal();
+                        if Jstoken[1].SelectToken('total_price',Jstoken[2]) then
+                            If Not JsToken[2].AsValue().IsNull then
+                                OrdHdr[1]."Order Total" := JsToken[2].AsValue().AsDecimal();
+                        If Jstoken[1].SelectToken('total_shipping_price_set',Jstoken[2]) then
+                            If Jstoken[2].AsObject().SelectToken('shop_money',JsToken[1]) then
+                                If Jstoken[1].Asobject().SelectToken('amount',Jstoken[2]) then
+                                    If Not JsToken[2].AsValue().IsNull then
+                                        OrdHdr[1]."Freight Total" := JsToken[2].AsValue().AsDecimal();
+                        if Jstoken[1].SelectToken('total_tax',Jstoken[2]) then
+                            if not Jstoken[2].AsValue().IsNull then
+                                OrdHdr[1]."Tax Total" := JsToken[2].AsValue().AsDecimal();
+                        Ordhdr[1].Modify();
+                        recCnt +=1;
+                        if JsArry[1].get(i,Jstoken[1]) Then
+                        begin
+                            If Jstoken[1].SelectToken('discount_applications',Jstoken[2]) then
+                                If JsToken[2].AsArray().Count > 0 then
+                                begin
+                                    JsArry[2] := JsToken[2].AsArray();
+                                    for j := 0 to JsArry[2].Count - 1 do
                                     begin
-                                        JsArry[2] := JsToken[2].AsArray();
-                                        for j := 0 to JsArry[2].Count - 1 do
-                                        begin
-                                            JsArry[2].get(j,Jstoken[1]);
-                                            OrdApp.init;
-                                            Clear(OrdApp.ID);
-                                            OrdApp.Insert;
-                                            OrdApp.ShopifyID := OrdHdr.ID;
-                                            OrdApp."Shopify Order ID" := OrdHdr."Shopify Order ID";
-                                            if JsToken[1].Selecttoken('type',JsToken[2]) then
-                                                if not Jstoken[2].AsValue().IsNull then
-                                                    OrdApp.validate("Shopify App Type",JsToken[2].AsValue().AsText());
-                                            if JSToken[1].SelectToken('code',jsToken[2]) then
-                                                if not Jstoken[2].AsValue().IsNull then
-                                                    OrdApp."Shopify Disc App Code" := CopyStr(Jstoken[2].AsValue().AsCode(),1,100);
-                                            if JSToken[1].SelectToken('description',jsToken[2]) then
-                                                if not Jstoken[2].AsValue().IsNull then
-                                                    OrdApp."Shopify Disc App Description" := CopyStr(Jstoken[2].AsValue().AsCode(),1,100)
-                                            else if JSToken[1].SelectToken('title',jsToken[2]) then
-                                                if not Jstoken[2].AsValue().IsNull then
-                                                    OrdApp."Shopify Disc App Description" := CopyStr(Jstoken[2].AsValue().AsCode(),1,100);
-                                            if JSToken[1].SelectToken('value',jsToken[2]) then
-                                                if not Jstoken[2].AsValue().IsNull then
-                                                    OrdApp."Shopify Disc App value" := jsToken[2].AsValue().AsDecimal();
-                                            if JSToken[1].SelectToken('value_type',jsToken[2]) then
-                                                if not Jstoken[2].AsValue().IsNull then
-                                                    OrdApp."Shopify Disc App value Type" := jsToken[2].AsValue().Astext;
-                                            OrdApp."Shopify Disc App Index" := j;
-                                            OrdApp.modify(true);
-                                        end;
+                                        JsArry[2].get(j,Jstoken[1]);
+                                        OrdApp.init;
+                                        Clear(OrdApp.ID);
+                                        OrdApp.Insert;
+                                        OrdApp.ShopifyID := OrdHdr[1].ID;
+                                        OrdApp."Shopify Order ID" := OrdHdr[1]."Shopify Order ID";
+                                        if JsToken[1].Selecttoken('type',JsToken[2]) then
+                                            if not Jstoken[2].AsValue().IsNull then
+                                                OrdApp.validate("Shopify App Type",JsToken[2].AsValue().AsText());
+                                        if JSToken[1].SelectToken('code',jsToken[2]) then
+                                            if not Jstoken[2].AsValue().IsNull then
+                                                OrdApp."Shopify Disc App Code" := CopyStr(Jstoken[2].AsValue().AsCode(),1,100);
+                                        if JSToken[1].SelectToken('description',jsToken[2]) then
+                                            if not Jstoken[2].AsValue().IsNull then
+                                                OrdApp."Shopify Disc App Description" := CopyStr(Jstoken[2].AsValue().AsCode(),1,100)
+                                        else if JSToken[1].SelectToken('title',jsToken[2]) then
+                                            if not Jstoken[2].AsValue().IsNull then
+                                                OrdApp."Shopify Disc App Description" := CopyStr(Jstoken[2].AsValue().AsCode(),1,100);
+                                        if JSToken[1].SelectToken('value',jsToken[2]) then
+                                            if not Jstoken[2].AsValue().IsNull then
+                                                OrdApp."Shopify Disc App value" := jsToken[2].AsValue().AsDecimal();
+                                        if JSToken[1].SelectToken('value_type',jsToken[2]) then
+                                            if not Jstoken[2].AsValue().IsNull then
+                                                OrdApp."Shopify Disc App value Type" := jsToken[2].AsValue().Astext;
+                                        OrdApp."Shopify Disc App Index" := j;
+                                        OrdApp.modify(true);
                                     end;
-                                JsArry[1].get(i,Jstoken[1]);
-                                If Jstoken[1].SelectToken('line_items',Jstoken[2]) then
-                                    If jsToken[2].AsArray().Count > 0 then
+                                end;
+                            JsArry[1].get(i,Jstoken[1]);
+                            If Jstoken[1].SelectToken('line_items',Jstoken[2]) then
+                                If jsToken[2].AsArray().Count > 0 then
+                                begin
+                                    JsArry[2] := JsToken[2].AsArray();
+                                    for j := 0 to JsArry[2].Count - 1 do
                                     begin
-                                        JsArry[2] := JsToken[2].AsArray();
-                                        for j := 0 to JsArry[2].Count - 1 do
+                                        JsArry[2].get(j,JsToken[1]);
+                                        OrdLine[1].init;
+                                        Clear(OrdLine[1].ID);
+                                        Ordline[1].insert;
+                                        Ordline[1]."Shopify Order ID" := OrdHdr[1]."Shopify Order ID";
+                                        Ordline[1].ShopifyID := OrdHdr[1].ID;
+                                        OrdLine[1]."Is NPF Item" := True;
+                                        Ordline[1]."Order Line No" := (j + 1) * 10;
+                                        if JsToken[1].SelectToken('id',JsToken[2]) Then
                                         begin
-                                            JsArry[2].get(j,JsToken[1]);
-                                            OrdLine.init;
-                                            Clear(OrdLine.ID);
-                                            Ordline.insert;
-                                            Ordline."Shopify Order ID" := OrdHdr."Shopify Order ID";
-                                            Ordline.ShopifyID := OrdHdr.ID;
-                                            OrdLine."Is NPF Item" := True;
-                                            Ordline."Order Line No" := (j + 1) * 10;
-                                            if JsToken[1].SelectToken('id',JsToken[2]) Then
-                                            begin
-                                                if not Jstoken[2].AsValue().IsNull then
-                                                Begin    
-                                                    OrdLine."Order Line ID" := JsToken[2].AsValue().AsBigInteger();
-                                                    If JsToken[1].SelectToken('sku',JsToken[2]) then
+                                            if not Jstoken[2].AsValue().IsNull then
+                                            Begin    
+                                                OrdLine[1]."Order Line ID" := JsToken[2].AsValue().AsBigInteger();
+                                                If JsToken[1].SelectToken('sku',JsToken[2]) then
+                                                begin
+                                                    If Not JsToken[2].AsValue().IsNull then
+                                                        Ordline[1]."Item No.":= CopyStr(jstoken[2].AsValue().AsCode(),1,20)
+                                                    else
                                                     begin
-                                                        If Not JsToken[2].AsValue().IsNull then
-                                                            Ordline."Item No.":= CopyStr(jstoken[2].AsValue().AsCode(),1,20)
-                                                        else
-                                                        begin
-                                                            If JsToken[1].SelectToken('name',JsToken[2]) then
-                                                                If Not JsToken[2].AsValue().IsNull then
+                                                        If JsToken[1].SelectToken('name',JsToken[2]) then
+                                                            If Not JsToken[2].AsValue().IsNull then
+                                                            begin
+                                                                If JsToken[2].AsValue().Astext.ToUpper().Contains('SUPER') then
+                                                                    Ordline[1]."Item No." := 'SUPERPHARMACY'
+                                                                else If JsToken[2].AsValue().Astext.ToUpper().Contains('B2B') then
+                                                                    Ordline[1]."Item No." := 'B2B ITEM';
+                                                            end;     
+                                                    end;
+                                                    If Item.Get(OrdLine[1]."Item No.") then
+                                                    begin
+                                                        OrdLine[1]."Is NPF Item" := Item."SKU Part Source" = Item."SKU Part Source"::NPF;
+                                                        If Item.Type = Item.type::"Non-Inventory" then Clear(OrdLine[1]."Is NPF Item");
+                                                        If JsToken[1].SelectToken('gift_card',JsToken[2]) then
+                                                            if not Jstoken[2].AsValue().IsNull then
+                                                                if JsToken[2].AsValue().AsBoolean() then
+                                                                Begin
+                                                                    Ordline[1]."Item No." := 'GIFT_CARD';
+                                                                    Clear(OrdLine[1]."Is NPF Item");
+                                                                end;    
+                                                        if JsToken[1].SelectToken('quantity',JsToken[2]) then
+                                                            if not Jstoken[2].AsValue().IsNull then
+                                                            begin
+                                                                Ordline[1]."Order Qty" :=  jstoken[2].AsValue().AsDecimal();
+                                                                If Not OrdLine[1]."Is NPF Item" then
                                                                 begin
-                                                                    If JsToken[2].AsValue().Astext.ToUpper().Contains('SUPER') then
-                                                                        Ordline."Item No." := 'SUPERPHARMACY'
-                                                                    else If JsToken[2].AsValue().Astext.ToUpper().Contains('B2B') then
-                                                                        Ordline."Item No." := 'B2B ITEM';
-                                                                end;     
+                                                                    OrdLine[1]."Location Code" := 'QC';
+                                                                    OrdLine[1]."NPF Shipment Qty" := Ordline[1]."Order Qty";
+                                                                end;
+                                                            end;    
+                                                        if JsToken[1].SelectToken('price',JsToken[2]) then
+                                                            if not Jstoken[2].AsValue().IsNull then
+                                                                Ordline[1]."Unit Price" :=  jstoken[2].AsValue().AsDecimal();
+                                                        if JsToken[1].SelectToken('total_discount',JsToken[2]) then
+                                                            if not Jstoken[2].AsValue().IsNull then
+                                                                Ordline[1]."Discount Amount" := jstoken[2].AsValue().AsDecimal();
+                                                        Ordline[1]."Shopify Application Index" := -1;
+                                                        if JsToken[1].SelectToken('discount_allocations',JsToken[2]) then
+                                                        begin
+                                                            If JsToken[2].AsArray().Count > 0 then
+                                                            begin
+                                                                Jstoken[2].AsArray().get(0,Jstoken[1]);
+                                                                if jstoken[1].SelectToken('discount_application_index',JsToken[2]) then
+                                                                    if not Jstoken[2].AsValue().IsNull then
+                                                                        Ordline[1]."Shopify Application Index" := JsToken[2].AsValue().AsInteger();
+                                                                if jstoken[1].SelectToken('amount',JsToken[2]) then
+                                                                    if not Jstoken[2].AsValue().IsNull then
+                                                                        Ordline[1]."Discount Amount" := jstoken[2].AsValue().AsDecimal(); 
+                                                            end;    
                                                         end;
-                                                        If Item.Get(OrdLine."Item No.") then
+                                                        Ordline[1]."Tax Amount" := 0;
+                                                        JsArry[2].get(j,JsToken[1]);
+                                                        if JsToken[1].SelectToken('tax_lines',JsToken[2]) then
                                                         begin
-                                                            OrdLine."Is NPF Item" := Item."SKU Part Source" = Item."SKU Part Source"::NPF;
-                                                            If Item.Type = Item.type::"Non-Inventory" then Clear(OrdLine."Is NPF Item");
-                                                            If JsToken[1].SelectToken('gift_card',JsToken[2]) then
-                                                                if not Jstoken[2].AsValue().IsNull then
-                                                                    if JsToken[2].AsValue().AsBoolean() then
-                                                                    Begin
-                                                                        Ordline."Item No." := 'GIFT_CARD';
-                                                                        Clear(OrdLine."Is NPF Item");
-                                                                    end;    
-                                                            if JsToken[1].SelectToken('quantity',JsToken[2]) then
-                                                                if not Jstoken[2].AsValue().IsNull then
-                                                                begin
-                                                                    Ordline."Order Qty" :=  jstoken[2].AsValue().AsDecimal();
-                                                                    If Not OrdLine."Is NPF Item" then
-                                                                    begin
-                                                                        OrdLine."Location Code" := 'NSW';
-                                                                        OrdLine."NPF Shipment Qty" := Ordline."Order Qty";
-                                                                    end;
-                                                                end;    
-                                                            if JsToken[1].SelectToken('price',JsToken[2]) then
-                                                                if not Jstoken[2].AsValue().IsNull then
-                                                                    Ordline."Unit Price" :=  jstoken[2].AsValue().AsDecimal();
-                                                            if JsToken[1].SelectToken('total_discount',JsToken[2]) then
-                                                                if not Jstoken[2].AsValue().IsNull then
-                                                                    Ordline."Discount Amount" := jstoken[2].AsValue().AsDecimal();
-                                                            Ordline."Shopify Application Index" := -1;
-                                                            if JsToken[1].SelectToken('discount_allocations',JsToken[2]) then
+                                                            If JsToken[2].AsArray().Count > 0 then
                                                             begin
-                                                                If JsToken[2].AsArray().Count > 0 then
-                                                                begin
-                                                                    Jstoken[2].AsArray().get(0,Jstoken[1]);
-                                                                    if jstoken[1].SelectToken('discount_application_index',JsToken[2]) then
-                                                                        if not Jstoken[2].AsValue().IsNull then
-                                                                            Ordline."Shopify Application Index" := JsToken[2].AsValue().AsInteger();
-                                                                    if jstoken[1].SelectToken('amount',JsToken[2]) then
-                                                                        if not Jstoken[2].AsValue().IsNull then
-                                                                            Ordline."Discount Amount" := jstoken[2].AsValue().AsDecimal(); 
-                                                                end;    
-                                                            end;
-                                                            Ordline."Tax Amount" := 0;
-                                                            JsArry[2].get(j,JsToken[1]);
-                                                            if JsToken[1].SelectToken('tax_lines',JsToken[2]) then
-                                                            begin
-                                                                If JsToken[2].AsArray().Count > 0 then
-                                                                begin
-                                                                    Jstoken[2].AsArray().get(0,Jstoken[1]);
-                                                                    if jstoken[1].SelectToken('price',JsToken[2]) then
-                                                                        if not Jstoken[2].AsValue().IsNull then
-                                                                            Ordline."Tax Amount" := jstoken[2].AsValue().AsDecimal();
-                                                                end;    
-                                                            end;
-                                                            Clear(OrdLine."Auto Delivered");
-                                                            Ordline."Base Amount" := Ordline."Order Qty" * Ordline."Unit Price";
-                                                            OrdLine.Modify(false);
-                                                        end    
-                                                        else
-                                                            OrdLine.delete();
+                                                                Jstoken[2].AsArray().get(0,Jstoken[1]);
+                                                                if jstoken[1].SelectToken('price',JsToken[2]) then
+                                                                    if not Jstoken[2].AsValue().IsNull then
+                                                                        Ordline[1]."Tax Amount" := jstoken[2].AsValue().AsDecimal();
+                                                            end;    
+                                                        end;
+                                                        Clear(OrdLine[1]."Auto Delivered");
+                                                        Ordline[1]."Base Amount" := Ordline[1]."Order Qty" * Ordline[1]."Unit Price";
+                                                        OrdLine[1].Modify(false);
                                                     end    
                                                     else
-                                                         OrdLine.delete();
+                                                        OrdLine[1].delete();
                                                 end    
                                                 else
-                                                    OrdLine.delete();
-                                            end
+                                                        OrdLine[1].delete();
+                                            end    
                                             else
-                                                OrdLine.delete();
-                                        end;  
-                                    end; 
-                            end
-                            else if GuiAllowed then
-                            begin 
-                                Win.Update(2,'');
-                                Win.update(3,'');
-                            end;
-                            OrdLine.reset;
-                            OrdLine.Setrange(ShopifyID,OrdHdr.ID);
-                            If Not OrdLine.FindSet() then
-                            begin
-                                OrdHdr.Delete(True);
-                                RecCnt -=1;
-                            end;    
-                        end    
-                        Else if GuiAllowed then
+                                                OrdLine[1].delete();
+                                        end
+                                        else
+                                            OrdLine[1].delete();
+                                    end;  
+                                end
+                        end         
+                        else if GuiAllowed then
                         begin 
                             Win.Update(2,'');
                             Win.update(3,'');
-                        end;    
-                    end
-                    else if GuiAllowed then
+                        end;
+                        OrdLine[1].reset;
+                        OrdLine[1].Setrange(ShopifyID,OrdHdr[1].ID);
+                        If Not OrdLine[1].FindSet() then
+                        begin
+                            OrdHdr[1].Delete(True);
+                            RecCnt -=1;
+                        end 
+                        else if OrdHdr[1]."Order Type" = OrdHdr[1]."Order Type"::Cancelled then 
+                        begin
+                            OrdHdr[2].Copy(OrdHdr[1]);
+                            OrdHdr[2]."Order Type" := OrdHdr[2]."Order Type"::CreditMemo;
+                            Clear(OrdHdr[2].ID);
+                            OrdHdr[2].insert(true);
+                            repeat    
+                                OrdLine[2].copy(OrdLine[1]);
+                                OrdLine[2].ShopifyID := OrdHdr[2].ID;
+                                Clear(OrdLine[2].ID);
+                                OrdLine[2].Insert();
+                            until OrdLine[1].next = 0;    
+                        end;
+                    end    
+                    Else if GuiAllowed then
                     begin 
                         Win.Update(2,'');
                         Win.update(3,'');
                     end;    
-                end;
-            end;
+                end
+            end    
+            else if GuiAllowed then
+            begin 
+                Win.Update(2,'');
+                Win.update(3,'');
+            end;    
             Parms.Remove('since_id');
             Parms.Add('since_id',Format(indx));
             If recCnt > 50 then
@@ -2218,12 +2621,12 @@ codeunit 80000 "HL Shopify Routines"
         until cnt <=0; 
         Commit;
         //do every 7 days 
-        If Date2DWY(today,1) = 7 then Process_Refunds();    
+        If Date2DWY(today,1) = 6 then Process_Refunds(0);
+        If Date2DWY(today,1) = 7 then Check_For_Extra_Refunds(0);
         if GuiAllowed then win.Close;
         exit(true);
     end;
-
-    procedure Process_Refunds()
+    procedure Process_Refunds(RefundID:BigInteger)
     var
         OrdHdr:array[2] of record "HL Shopify Order Header";
         OrdLine:record "HL Shopify Order Lines";
@@ -2243,6 +2646,7 @@ codeunit 80000 "HL Shopify Routines"
         OrdExist:Boolean;
         RefQty:Decimal;
         OrigQty:Decimal;
+        Setup:record "Sales & Receivables Setup";
     begin
         if Not Item.Get('NON_REFUND_ITEM') then
         begin
@@ -2266,6 +2670,12 @@ codeunit 80000 "HL Shopify Routines"
             Item.Validate("Base Unit of Measure",'EA');
             Item.modify();
         end;
+        Setup.get;
+        If Setup."Refund Order Lookback Period" = 0 then
+        begin
+            Setup."Refund Order Lookback Period" := 2;
+            Setup.modify(False);
+        end;
         if GuiAllowed then win.Open('Retrieving Order No    #1###########\'
                                    +'Processing Order No    #2###########');
         Clear(PayLoad);
@@ -2278,7 +2688,10 @@ codeunit 80000 "HL Shopify Routines"
         OrdHdr[1].SetFilter("BC Reference No.",'<>%1','');
         OrdHdr[1].Setrange("Order Type",OrdHdr[1]."Order Type"::Invoice);
         OrdHdr[1].Setrange("Refunds Checked",False);
-        OrdHdr[1].SetFilter("Shopify Order Date",'<=%1',CalcDate('-1W',Today));    
+        If RefundID <> 0 then 
+            OrdHdr[1].Setrange("Shopify Order No.",RefundID)
+        else
+            OrdHdr[1].SetFilter("Shopify Order Date",'<=%1',CalcDate('-' + Format(Setup."Refund Order Lookback Period") + 'W',Today));    
         If OrdHdr[1].Findset then
         repeat
             if GuiAllowed then 
@@ -2584,9 +2997,182 @@ codeunit 80000 "HL Shopify Routines"
         until OrdHdr[1].next = 0;
         if GuiAllowed then Win.Close;
         Commit;
+        If RefundID <> 0 then Check_For_Extra_Refunds(RefundID);
     end;        
-
-        local Procedure Extract_MarketPlace_Invoice_Number(Val:text):text
+    procedure Check_For_Extra_Refunds(RefundID:BigInteger)
+    var
+        OrdHdr:array[2] of record "Hl Shopify Order Header";
+        OrdLine:record "Hl Shopify Order Lines";
+        Recon:Array[2] of record "HL Order Reconciliations";
+        JsToken:array[2] of JsonToken;
+        JsArry:array[2] of JsonArray;
+        Parms:Dictionary of [text,text];
+        Data:JsonObject;
+        PayLoad:text;
+        i,j:integer;
+        RefiD:BigInteger;
+        ReFTot:Decimal;
+        Item:Record Item;
+        Win:Dialog;
+        Setup:Record "Sales & Receivables Setup";
+    Begin
+        Setup.Get;
+        If Setup."Ext Refund Order Lookback Per" = 0 then
+        begin
+            Setup."Ext Refund Order Lookback Per" := 3;
+            Setup.Modify(False);
+            Commit;
+        end;
+        Clear(PayLoad);
+        Clear(Parms);
+        Parms.Add('fields','refunds');
+        Clear(Data);
+        if GuiAllowed then win.Open('Retrieving Order No    #1###########\'
+                                   +'Processing Order No    #2###########\'
+                                   +'Adding Refund Order No #3############');
+        OrdHdr[1].Reset;
+        OrdHdr[1].SetCurrentKey("Shopify Order No.");
+        OrdHdr[1].Setrange("Order Status",OrdHdr[1]."Order Status"::Closed);
+        OrdHdr[1].SetFilter("BC Reference No.",'<>%1','');
+        OrdHdr[1].Setrange("Order Type",OrdHdr[1]."Order Type"::Invoice);
+        OrdHdr[1].SetFilter("Shopify Order Date",'>=%1',CalcDate('-' + Format(Setup."Ext Refund Order Lookback Per") + 'M',Today));
+        If RefundID <> 0 then
+            OrdHdr[1].SetRange("Shopify Order No.",RefundID);
+        OrdHdr[1].Setrange("Refunds Checked",True);
+        If OrdHdr[1].Findset then
+        repeat
+            if Shopify_Data(Paction::GET,ShopifyBase + 'orders/' + Format(OrdHdr[1]."Shopify Order ID") + '.json'
+                                                ,Parms,PayLoad,Data) then
+            Begin
+                If GuiAllowed then Win.Update(1,OrdHdr[1]."Shopify Order No.");
+                Clear(RefTot);
+                Data.Get('order',JsToken[1]);
+                If JsToken[1].SelectToken('refunds',JsToken[2]) then
+                Begin
+                    JsArry[1] := JsToken[2].AsArray();
+                    If JsArry[1].Count > 0 then
+                        For i := 0 to JsArry[1].Count - 1 do
+                        begin
+                            JsArry[1].get(i,JsToken[1]);
+                            JsToken[1].SelectToken('transactions',JsToken[2]);
+                            JsArry[2] := JsToken[2].AsArray();
+                            For j := 0 to JsArry[2].Count - 1 do
+                            begin
+                                JsArry[2].get(j,JsToken[1]);
+                                if JsToken[1].SelectToken('amount',Jstoken[2]) then
+                                    If not Jstoken[2].AsValue().IsNull then
+                                        RefTot += Jstoken[2].AsValue().AsDecimal();
+                            end;
+                        end;
+                    If ReFTot > 0 then
+                    begin
+                        Recon[1].Reset;
+                        Recon[1].Setrange("Shopify Display ID",OrdHdr[1]."Shopify Order ID");
+                        Recon[1].Setrange("Shopify Order Type",Recon[1]."Shopify Order Type"::Refund);
+                        If Recon[1].FindSet() then
+                        Begin
+                            Recon[1].CalcSums("Order Total");
+                            If RefTot > Recon[1]."Order Total" then
+                            begin
+                                If GuiAllowed then Win.Update(2,OrdHdr[1]."Shopify Order No.");
+                                Recon[2].Copy(Recon[1]);
+                                Get_Order_Reconciliation_Transactions(Recon[2]);            
+                                Clear(Recon[2]."Apply Status");
+                                Recon[2]."Order Total" := RefTot - Recon[1]."Order Total";
+                                Clear(Recon[2]."Extra Refund Count");
+                                While Recon[1].Get(Recon[2]."Shopify Order ID",Recon[2]."Shopify Order Type") do
+                                Begin
+                                    Recon[2]."Shopify Order ID" += 1;
+                                    Recon[2]."Extra Refund Count" +=1;
+                                end;    
+                                Recon[2].Insert;
+                                For RefiD := OrdHdr[1]."Shopify Order ID" to Recon[2]."Shopify Order ID" - 1 do
+                                begin
+                                    OrdHdr[2].reset;
+                                    OrdHdr[2].Setrange("Shopify Order ID",RefID);
+                                    OrdHdr[2].Setrange("Order Type",OrdHdr[2]."Order Type"::CreditMemo);
+                                    If OrdHdr[2].FindSet() then
+                                    begin
+                                        OrdLine.Reset;
+                                        OrdLine.Setrange(ShopifyID,OrdHdr[2].ID);
+                                        If OrdLine.Findset then
+                                        Begin
+                                            OrdLine.CalcSums("Base Amount","Discount Amount");
+                                            ReFTot -= (OrdLine."Base Amount" - OrdLine."Discount Amount");
+                                            Recon[2]."Refund Shopify ID" := OrdHdr[2]."Shopify Order ID";
+                                        End;
+                                    end;    
+                                end;
+                                If ReFTot = 0 then
+                                    Recon[2].Modify()
+                                else
+                                begin
+                                    If GuiAllowed then Win.Update(3,OrdHdr[1]."Shopify Order No.");
+                                    OrdHdr[2].Init;
+                                    Clear(OrdHdr[2].ID);
+                                    OrdHdr[2].Insert();
+                                    OrdHdr[2]."Shopify Order ID" := Recon[2]."Shopify Order ID";
+                                    OrdHdr[2]."Order Type" := OrdHdr[2]."Order Type"::CreditMemo;
+                                    OrdHdr[2]."Shopify Order Date" := OrdHdr[1]."Shopify Order Date";
+                                    OrdHdr[2]."Transaction Date" := Today;
+                                    OrdHdr[2]."Shopify Order No." := OrdHdr[1]."Shopify Order No.";
+                                    OrdHdr[2]."NPF Shipment Status" := OrdHdr[2]."NPF Shipment Status"::Complete;
+                                    OrdHdr[2]."Shopify Order Currency" := OrdHdr[1]."Shopify Order Currency";
+                                    OrdHdr[2]."Order Total" := RefTot;
+                                    OrdHdr[2]."Shopify Order Status" := 'FULFILLED';
+                                    OrdHdr[2].Modify(False);
+                                    OrdLine.Init();
+                                    Clear(OrdLine.ID);
+                                    OrdLine.insert;
+                                    OrdLine."Shopify Order ID" := OrdHdr[2]."Shopify Order ID";
+                                    OrdLine.ShopifyID := Ordhdr[2].ID;
+                                    Ordline."Order Line No" := 10;
+                                    Ordline."Item No." := 'NON_REFUND_ITEM';
+                                    OrdLine."Location Code" := 'QC';
+                                    Item.Get(Ordline."Item No.");
+                                    OrdLine."Unit Of Measure" := Item."Base Unit of Measure";
+                                    OrdLine."Order Qty" := 1;
+                                    OrdLine."Unit Price" := ReFTot;
+                                    Ordline."NPF Shipment Qty" := 1;
+                                    Ordline."Shopify Application Index" := -1;
+                                    OrdLine."Discount Amount" := 0;
+                                    OrdLine."Tax Amount" := 0;
+                                    Ordline."Base Amount" := Ordline."Order Qty" * Ordline."Unit Price";
+                                    OrdLine.modify(false);
+                                    // Here we align existing Recon entries that don't have 
+                                    // a return order in place with the created return order
+                                    Recon[1].Reset;
+                                    Recon[1].Setrange("Shopify Display ID",OrdHdr[1]."Shopify Order ID");
+                                    Recon[1].Setrange("Shopify Order Type",Recon[1]."Shopify Order Type"::Refund);
+                                    Recon[1].Setrange("Refund Shopify ID",0);
+                                    Recon[1].Setrange("Extra Refund Count",0);
+                                    If Recon[1].Findset then
+                                    repeat
+                                        OrdHdr[2].reset;
+                                        OrdHdr[2].Setrange("Shopify Order ID",Recon[1]."Shopify Order ID");
+                                        OrdHdr[2].Setrange("Order Type",OrdHdr[2]."Order Type"::CreditMemo);
+                                        If Not OrdHdr[2].Findset then
+                                        begin
+                                            Recon[1]."Refund Shopify ID" := OrdHdr[2]."Shopify Order ID";
+                                            Recon[1].Modify();
+                                        end;
+                                    until Recon[1].next = 0;    
+                                end;
+                                Commit;
+                            end;
+                        end;
+                    End
+                    else If GuiAllowed then
+                    Begin 
+                        Win.Update(2,'');
+                        Win.Update(3,'');
+                    end;    
+                end;
+            end;        
+        Until Ordhdr[1].next = 0;
+        If GuiAllowed then Win.CLose;
+    End;
+    local Procedure Extract_MarketPlace_Invoice_Number(Val:text):text
     var
         Retval:text;
         i:integer; 
@@ -2725,19 +3311,11 @@ codeunit 80000 "HL Shopify Routines"
             end;
         end;                            
     end;
-    procedure Send_Email_Msg(Subject:text;Body:text;ExRecip:Text):Boolean;
+   procedure Send_Email_Msg(Subject:text;Body:text;Recip:Text):Boolean;
     var
         EM:Codeunit "Email Message";
         Emailer:Codeunit Email;    
-        Setup:Record "Sales & Receivables Setup";
-        Recip:Text;
-    begin
-        Setup.get;
-        Clear(Recip);
-        If ExRecip <> '' then 
-            Recip := ExRecip
-        else
-            Recip := Setup."Exception Email Address"; 
+   begin
         If Recip.Contains('@') then
         begin
             EM.Create(Recip,Subject,Body);
@@ -2815,7 +3393,8 @@ codeunit 80000 "HL Shopify Routines"
         If Item.findSet then
         repeat
             Item.CalcFields(Inventory);
-            If Item.Inventory > 0 then Cu.Adjust_Inventory(Item,'QC',-Item.Inventory);
+            If Item.Inventory <> 0 then 
+                Cu.Adjust_Inventory(Item,'QC',-Item.Inventory);
         until Item.next = 0;
     end;
     procedure Credit_Correction(ID:BigInteger)
@@ -2915,7 +3494,7 @@ codeunit 80000 "HL Shopify Routines"
         PstDate:date;
         Disc:Decimal;
         ProcCnt:Integer;
-        SalesSetup:record "Sales & Receivables Setup";
+        Setup:record "Sales & Receivables Setup";
     begin
         Result := True;
         If Not Res.get('CUSTRETURN') then
@@ -3181,11 +3760,11 @@ codeunit 80000 "HL Shopify Routines"
             end;
             If Result then
             begin
-                SalesSetup.get;
-                If SalesSetup."Order Process Count" = 0 then
+                Setup.get;
+                If Setup."Order Process Count" = 0 then
                 begin
-                    SalesSetup."Order Process Count" := 300;
-                    SalesSetup.Modify(False);
+                    Setup."Order Process Count" := 300;
+                    Setup.Modify(False);
                 end;    
                 if GuiAllowed Then Win.Open('Processing Orders #1####### of #2#########');
                 For Loop := 1 to 2  do
@@ -3198,7 +3777,7 @@ codeunit 80000 "HL Shopify Routines"
                     if Loop = 1 then
                     begin
                         HLOrdHdr[1].Setrange("NPF Shipment Status",HLOrdHdr[1]."NPF Shipment Status"::Complete);
-                        HLOrdHdr[1].Setrange("Order Type",HLOrdHdr[1]."Order Type"::Invoice);
+                        HLordHdr[1].Setfilter("Order Type",'%1|%2',HLOrdHdr[1]."Order Type"::Invoice,HLOrdHdr[1]."Order Type"::Cancelled);
                     end    
                     else
                         HLOrdHdr[1].Setrange("Order Type",HLOrdHdr[1]."Order Type"::CreditMemo);
@@ -3390,7 +3969,7 @@ codeunit 80000 "HL Shopify Routines"
                                 HLOrdHdr[1]."BC Reference No." := OrdNo;
                                 HLOrdHdr[1].Modify();
                             end;
-                            If ProcCnt >= SalesSetup."Order Process Count" then
+                            If ProcCnt >= Setup."Order Process Count" then
                             begin
                                 Clear(ProcCnt);
                                 If Loop = 2 then SalesHdr."Reason Code" := 'CUSTRETURN'; 
@@ -3502,7 +4081,7 @@ codeunit 80000 "HL Shopify Routines"
                 if GuiAllowed Then Win.Close;
             end;
         end;
-        If Excp.count > 1 then Send_Email_Msg('Order Exceptions','Check Shopify Sales Orders .. Exceptions exist requiring manual intervention.','');
+        If Excp.count > 1 then Send_Email_Msg('Order Exceptions','Check Shopify Sales Orders .. Exceptions exist requiring manual intervention.',Setup."Exception Email Address");
         If PstDate <> 0D then
         begin
             GLsetup."Allow Posting To" := PstDate;
@@ -3879,5 +4458,69 @@ codeunit 80000 "HL Shopify Routines"
     begin
         HideDialog := True;
     end;
-    
+ 
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post", 'OnAfterPostItemLine', '', true, true)]
+    local procedure "Update Accural Rebates"
+    (
+        SalesHeader: Record "Sales Header";
+		SalesLine: Record "Sales Line";
+		QtyToInvoice: Decimal;
+		QtyToInvoiceBase: Decimal;
+		CommitIsSuppressed: Boolean
+    )
+    var
+        Reb:Record "HL Purchase Rebates";
+        Item:Record Item;
+        RebSku:record "HL Rebate Sales Sku";
+        SReb:Record "HL Rebate Sales";
+        SOrdHdr:Record "HL Shopify Order Header";
+        Flg:Boolean;
+    begin
+       If (SalesHeader."Document Type" = SalesHeader."Document Type"::Invoice) 
+            And (SalesHeader."Sell-to Customer No." = 'HEALTHY LIFE')
+            And (SalesLine."Document type" = SalesHeader."Document Type")
+            And (SalesLine.Type = SalesLine.Type::Item) then
+        begin
+            SOrdHdr.Reset;
+            SOrdHdr.Setrange("Shopify Order No.",SalesLine."Shopify Order No");
+            SOrdHdr.Setrange("Order Type",SOrdHdr."Order Type"::Invoice);
+            If SOrdHdr.Findset then
+            begin
+                Flg := True;
+                RebSku.reset;
+                RebSku.Setrange(SKU,SalesLine."No.");
+                RebSku.Setrange("Used In Rebate Period",True);
+                RebSku.Setfilter("Rebate %",'>0');
+                If RebSku.findset then
+                repeat
+                    SReb.reset;
+                    SReb.Setrange("Rebate Period",RebSku."Rebate Period");
+                    SReb.Setrange(Brand,RebSku.Brand);
+                    SReb.Setfilter("Rebate Sale Start Date",'>%1<=%2',0D,SOrdHdr."Shopify Order Date");
+                    SReb.Setfilter("Rebate Sale End Date",'>=%1',SOrdHdr."Shopify Order Date");
+                    If SReb.Findset then
+                    begin
+                        Reb.Init;
+                        Clear(Reb.ID);
+                        Reb.insert();
+                        Reb."Item No." := RebSku.Sku;
+                        Reb.Brand := RebSku.Brand;
+                        Reb."Rebate Type" := Reb."Rebate Type"::Sales;
+                        Reb."Rebate Date" := SOrdHdr."Shopify Order Date";
+                        RebSku.CalcFields("Rebate Wholesale Cost","Supplier No.");
+                        Reb."Rebate Value" := RebSku."Rebate Wholesale Cost" * Rebsku."Rebate %"/100;
+                        Reb."Rebate %" := RebSku."Rebate %";
+                        Reb."Supplier No." := RebSku."Supplier No.";
+                        Reb."Document No." := SalesHeader."Posting No.";
+                        Reb."Document Line No." := SalesLine."Line No.";
+                        If (Reb."Supplier No." <> '') And (Reb."Rebate Value" <> 0) then
+                            Reb.Modify()
+                        else
+                            Reb.Delete();
+                        Clear(Flg);           
+                    end;    
+                until (RebSku.Next = 0) And Flg;
+            end;
+        end;
+    end;    
 }

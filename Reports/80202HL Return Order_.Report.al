@@ -284,11 +284,16 @@ report 80202 "HL Return Order"
                         {
                         //
                         }
-                        column(PurchLineItemRef;"Purchase Line"."Cross-Reference No.")
+                        /*column(PurchLineItemRef;"Purchase Line"."Cross-Reference No.")
                         {
                         //
                         }
-                        
+                        */
+                        column(PurchLineItemRef;"Purchase Line"."Item Reference No.")
+                        {
+                        //
+                        }
+                         
                         column(No_PurchLineCaption;"Purchase Line".FieldCaption("No."))
                         {
                         }

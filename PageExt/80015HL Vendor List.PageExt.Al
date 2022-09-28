@@ -7,7 +7,7 @@ pageextension 80015 "HL Vendor List Ext" extends "Vendor List"
     {
         addlast(processing)
         {
-            /*Action(Msg1)
+            Action(Msg1)
             {
                 ApplicationArea = all;
                 Caption = 'Vendor Rebates';
@@ -15,8 +15,25 @@ pageextension 80015 "HL Vendor List Ext" extends "Vendor List"
                 Promoted = true;
                 PromotedCategory = Category7;
                 ToolTip = 'Manages Vendor Rebates';
-                //RunObject = Page  "HL Rebate Payments";
+                RunObject = Page  "HL Rebate Payments";
             }
+            Action(Msg2)
+            {
+                ApplicationArea = all;
+                Caption = 'Rebate History';
+                Image = Change;
+                Promoted = true;
+                PromotedCategory = Category7;
+                ToolTip = 'Displays Rebate History';
+                trigger OnAction()
+                var
+                    Pg:Page "HL Rebate History";
+                begin
+                    Pg.RunModal();     
+                end;
+            }
+           
+            /*
             Action(MsgA)
             {
                 ApplicationArea = all;

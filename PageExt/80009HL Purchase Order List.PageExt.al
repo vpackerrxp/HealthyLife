@@ -70,7 +70,7 @@ pageextension 80009 "HL Purchase Order List Ext" extends "Purchase Order List"
                         end;
                     end;            
                 } 
-/*                Action(Msg2)
+                Action(Msg2)
                 {
                     ApplicationArea = all;
                     Caption = 'Supplier Rebates';
@@ -85,7 +85,8 @@ pageextension 80009 "HL Purchase Order List Ext" extends "Purchase Order List"
                         Pg.Set_Page_Mode(0,'');
                         Pg.RunModal();     
                     end;  
-                }    
+                } 
+                /*   
                 Action(MsgA)
                 {
                     ApplicationArea = all;

@@ -19,7 +19,7 @@ pageextension 80003 "HL Customer List Ext" extends "Customer List"
                     Cu: Codeunit "HL Shopify Routines";
                 begin
                     If Confirm('Retrieve Orders From Shopify Now?',True) then
-                        Cu.Get_Shopify_Orders(0);
+                        Cu.Get_Shopify_Orders(0,0);
                     
                 end;
             }
@@ -57,24 +57,36 @@ pageextension 80003 "HL Customer List Ext" extends "Customer List"
                 PromotedCategory = Category10;
                 RunObject = Page "HL Shopify Applications";
             }
-         /*   action("HLE")
+            action("HLP")
             {
                 ApplicationArea = All;
-                Caption = 'Sales Processing';
+                Caption = 'Shopify Promotions';
+                Image = Change;
+                Promoted = true;
+                PromotedCategory = Category10;
+                RunObject = Page "HL Promotions";
+            }
+            action("HLE")
+            {
+                ApplicationArea = All;
+                Caption = 'Sale Rebates Maintenance';
                 Image = Change;
                 Promoted = true;
                 PromotedCategory = Category10;
                 trigger OnAction()
                 begin
-                    Case StrMenu('Refunds,Zero $,Auto Delivery,Analysis',1) of
-                        1:PAGE.RunModal(PAGE::"HL Refund Processing");
-                        2:Page.RunModal(Page::"HL Zero Dollar Process");
-                        3:Page.Runmodal(Page::"HL Auto Delivery Processing");
-                        4:PAGE.RunModal(PAGE::"HL Sales Analysis");
-                    end;
+                    PAGE.RunModal(PAGE::"HL Rebate Sales");
                 end;
             }
-        */    
+            action("HLR")
+            {
+                ApplicationArea = All;
+                Caption = 'Shopify Refund Checks';
+                Image = Change;
+                Promoted = true;
+                PromotedCategory = Category10;
+                RunObject = Page "HL Refund Checks";
+            }
             action("HLF")
             {
                 ApplicationArea = All;
@@ -82,12 +94,30 @@ pageextension 80003 "HL Customer List Ext" extends "Customer List"
                 Image = Change;
                 Promoted = true;
                 PromotedCategory = Category10;
-                RunObject = Page "HL Shopify Order Recon";
+                RunObject = Page "HL Order Reconciliation";
+            }
+            action("HLF1")
+            {
+                ApplicationArea = All;
+                Caption = 'OLd Shopify Daily Reconciliation';
+                Image = Change;
+                Promoted = true;
+                PromotedCategory = Category10;
+                RunObject = Page "HL Shopify Order Recon";;
+            }
+             Action(Msg8)
+            {
+                ApplicationArea = All;
+                Caption = 'Setup';
+                Image = Change;
+                Promoted = true;
+                PromotedCategory = Category11;
+                RunObject = Page "Sales & Receivables Setup";
             }
             action("HLG")
             {
                 ApplicationArea = All;
-                Caption = 'Execution Log';
+                Caption = 'Daily Execution Log';
                 Image = Change;
                 Promoted = true;
                 PromotedCategory = Category10;

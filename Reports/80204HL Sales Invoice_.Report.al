@@ -1,7 +1,7 @@
 report 80204 "HL Sales Invoice"
 {
     DefaultLayout = RDLC;
-    RDLCLayout = 'report\SalesInvoice.rdl';
+    RDLCLayout = 'Reports\Report\SalesInvoice.rdl';
     Caption = 'Sales - Invoice';
     EnableHyperlinks = true;
     Permissions = TableData "Sales Shipment Buffer"=rimd;

@@ -1,7 +1,7 @@
 report 80205 "HL RemittanceAdvise"
 {
     DefaultLayout = RDLC;
-    RDLCLayout = 'report\RemittanceAdviceEntries.rdl';
+    RDLCLayout = 'Reports\Report\RemittanceAdviceEntries.rdl';
     Caption = 'Remittance Advice - Entries';
 
     dataset

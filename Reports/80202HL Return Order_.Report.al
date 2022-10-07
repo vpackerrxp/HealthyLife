@@ -1,7 +1,7 @@
 report 80202 "HL Return Order"
 {
     DefaultLayout = RDLC;
-    RDLCLayout = 'Report\ReturnOrder.rdl';
+    RDLCLayout = 'Reports\Report\ReturnOrder.rdl';
     Caption = 'Return Order';
     PreviewMode = PrintLayout;
 

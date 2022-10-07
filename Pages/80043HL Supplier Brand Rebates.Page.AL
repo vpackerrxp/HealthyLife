@@ -149,6 +149,11 @@ page 80043 "HL Supplier Brand Rebates"
                     ApplicationArea = All;
                     Visible = Mode = Mode::"Purch Rebates";
                 }
+                field("PO Line Disc %";rec."PO Line Disc %")
+                {
+                    ApplicationArea = All;
+                    Visible = Mode = Mode::PO;
+                }
                 field("Rebate Start Date Period"; rec."Rebate Start Date Period")
                 {
                     ApplicationArea = All;

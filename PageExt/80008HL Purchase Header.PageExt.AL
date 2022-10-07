@@ -17,17 +17,14 @@ pageextension 80008 "HL Purchase Header Ext" extends "Purchase Order"
                 Style = Strong;
                 Editable = flg;
             }
-        }
-        
-       /* addafter("Requested Receipt Date")
-        {
-            field("Requested Receipt Time";rec."Requested Receipt Time")
+            field("Email Status";rec."Email Status")
             {
                 ApplicationArea = All;
+                Style = Favorable;
+                StyleExpr = rec."Email Status" = rec."Email Status"::Sent;
             }
-        }*/
-        
-     }
+        }
+    }
     actions
     {
         addafter(Invoices)

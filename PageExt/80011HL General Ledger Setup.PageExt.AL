@@ -36,6 +36,7 @@ pageextension 80011 "HL Genral Ledger Setup Ext" extends "General Ledger Setup"
                     {
                         ApplicationArea = All;
                         ShowMandatory = true;
+                        Visible = False;
                     }
                     field("PayPal Clearing Acc";rec."PayPal Clearing Acc")
                     {
@@ -56,8 +57,9 @@ pageextension 80011 "HL Genral Ledger Setup Ext" extends "General Ledger Setup"
                     {
                         ApplicationArea = All;
                         ShowMandatory = true;
+                        Caption = 'Eway Clearing Acc';
                     }
-                   field("Misc Clearing Acc";rec."Misc Clearing Acc")
+                    field("Misc Clearing Acc";rec."Misc Clearing Acc")
                     {
                         ApplicationArea = All;
                         ShowMandatory = true;

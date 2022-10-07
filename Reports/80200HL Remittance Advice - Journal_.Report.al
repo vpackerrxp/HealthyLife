@@ -1,7 +1,7 @@
 report 80200 "HL Remittance Advice - Journal"
 {
     DefaultLayout = RDLC;
-    RDLCLayout = 'Report\HLRemittanceAdviseJournal.rdl';
+    RDLCLayout = 'Reports\Report\HLRemittanceAdviseJournal.rdl';
     Caption = 'Remittance Advice - Journal';
 
     dataset

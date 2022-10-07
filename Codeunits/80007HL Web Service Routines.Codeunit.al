@@ -30,6 +30,7 @@ codeunit 80007 "HL WebService Routines"
        PayLoad:text;
        Item:array[2] of record Item;
        ItemRel:record "HL Shopify Item Relations";
+       ItemUnit:record "Item Unit of Measure";
        DelTrack:record "HL Track Item Relation Deletes";
        CU:Codeunit "HL Shopify Routines";
        HasData:Boolean;
@@ -56,6 +57,17 @@ codeunit 80007 "HL WebService Routines"
                 Jsobj.add('name',Item[2]."Shopify Title");
                 Jsobj.add('variantname',Item[1]."Shopify Selling Option 1");
                 JsObj.Add('price',Item[1]."Current Price");
+                JsObj.Add('rrprice',Item[1]."Current RRP");
+                If Item[1]."Gen. Prod. Posting Group" = 'NO GST' then
+                    JsObj.Add('taxable',false)
+                else
+                    JsObj.Add('taxable',true);
+                JsObj.Add('barcode',Item[1].GTIN);
+                If ItemUnit.get(Item[1]."No.",Item[1]."Base Unit of Measure") then
+                    JsObj.Add('weight',ItemUnit.Weight)
+                else
+                    JsObj.Add('weight',0);
+                JsObj.Add('position',ItemRel."Child Position");    
                 If ItemRel."Un Publish Child" then
                     JsObj.add('status',0) // unpublish
                 else
@@ -75,6 +87,18 @@ codeunit 80007 "HL WebService Routines"
             Jsobj.add('name',DelTrack."Parent Name");
             Jsobj.add('variantname',DelTrack."Child Name");
             JsObj.Add('price',DelTrack.Price);
+            Item[1].Get(DelTrack."Child SKU");
+            JsObj.Add('rrprice',Item[1]."Current RRP");
+            If Item[1]."Gen. Prod. Posting Group" = 'NO GST' then
+                JsObj.Add('taxable',false)
+            else
+                JsObj.Add('taxable',true);
+            JsObj.Add('barcode',Item[1].GTIN);
+            If ItemUnit.get(Item[1]."No.",Item[1]."Base Unit of Measure") then
+                JsObj.Add('weight',ItemUnit.Weight)
+            else
+                JsObj.Add('weight',0);
+            JsObj.Add('position',DelTrack.Position);    
             JsObj.add('status',1); // Delete
             JsArry.add(JsObj);    
             HasData := True;    

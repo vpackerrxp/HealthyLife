@@ -26,6 +26,9 @@ table 80033 "HL Track Item Relation Deletes"
         field(70;"Child Name"; text[50])
         {
         }
+        field(80;Position; Integer)
+        {
+        }
     }
     keys
     {

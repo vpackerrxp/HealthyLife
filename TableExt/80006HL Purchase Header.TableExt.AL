@@ -59,6 +59,12 @@ tableextension 80006 "HL Purchase Header Ext" extends "Purchase Header"
         field(80003; "Rebate Post Lock"; Boolean)
         {
         }
+        field(80004; "Email Status"; Option)
+        {
+            OptionMembers = ,Sent;
+            Editable = False;
+        }
+
         /*field(80004; "Requested Receipt Time"; Time)
         {
         }

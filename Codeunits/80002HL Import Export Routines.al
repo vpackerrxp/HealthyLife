@@ -1,6 +1,368 @@
 Codeunit 80002 "HL Import Export Routines"
 {
     // routine to Build PO's
+
+    local procedure Check_Order_ID(Plist:List of [Text];ID:Text):Boolean
+    var
+        i:Integer;
+    begin
+        For i := 1 to Plist.Count do 
+            If Plist.Get(i).Split(',').Get(5) = ID then
+                Exit(true);
+        exit(false);       
+    end;
+    procedure Build_Import_PO()
+    var
+        Flds:list of [text];
+        POlist:List of [text];
+        Outstrm:OutStream;
+        BlobTmp:Codeunit "Temp Blob";
+        Instrm:InStream;
+        FileName:Text;
+        StckCnt:Integer;
+        SkipCnt:Integer;
+        POCnt:array[2] of integer;
+        Data:text;
+        i:Integer;
+        Flg:Boolean;
+        PurchHdr:record "Purchase Header";
+        PurchLine:record "Purchase Line";
+        Disc:Decimal;
+        Win:Dialog;
+        LineNo:integer;
+        Cst:Decimal;
+        Qty:Decimal;
+        Item:record Item;
+        ItemUnit:record "Item Unit of Measure";
+        ItemVend:Record "Item Vendor";
+        LineDisc:Decimal;
+        Brnd:Record "HL Supplier Brand Rebates";
+        RTime:text;
+        ReqDate:date;
+        ReqTime:Time;
+        Ven:record Vendor;
+        CU:Codeunit "HL Shopify Routines";
+        Pg:Page "HL Purchase Email Confirmation";
+   begin
+        if File.UploadIntoStream('Purchase Order Imports','','',FileName,Instrm) then
+        Begin
+            BlobTmp.CreateOutStream(Outstrm);
+            CopyStream(Outstrm,Instrm);
+            Clear(Instrm);
+            BlobTmp.CreateInStream(Instrm);
+            Clear(StckCnt);
+            Clear(POCnt);
+            Flg := True;
+            While Not Instrm.EOS AND Flg do
+            begin
+                Instrm.ReadText(Data);
+                StckCnt += 1;
+                If StrLen(Data) > 0 then
+                begin
+                    If (data.Split(',').get(1).ToUpper().Contains('SUP-')) AND (data.Split(',').get(5)<> '') then
+                        POlist.Add(Data)
+                    else if data.Split(',').get(1).ToUpper().Contains('STOCK') then 
+                        Clear(Flg); 
+                end;
+            end;
+            If flg then Error('Could not locate SKU start position in the file');
+            // first Parse check they have an Email 
+            If GuiAllowed then Win.Open('Parsing Email Address/Order ID For Vendor #1################');
+            For i := 1 to POlist.Count do 
+            begin
+                If GuiAllowed then Win.Update(1,POlist.get(i).Split(',').get(1));      
+                If Ven.Get(POlist.get(i).Split(',').get(1)) then
+                begin
+                    If not Ven."Operations E-Mail".Contains('@') then
+                        Error('Operations Email is missing or is invalid for Supplier %1',Ven."No.");
+                end        
+                else
+                    Error(Strsubstno('Supplier %1 does not exist',POlist.get(i).Split(',').get(1)));
+                if POlist.get(i).Split(',').get(5) = '' then
+                    Error('Order ID is missing for Supplier %1',Ven."No.");
+            end;
+            If GuiAllowed then 
+            begin
+                Win.Close;
+                Win.Open('Parsing Vendor #1################'
+                        +'SKU #2##############');
+            end;    
+            // here we parse the SKU data
+            For i := 1 to POlist.Count do 
+            begin
+                Clear(Instrm);
+                BlobTmp.CreateInStream(Instrm);
+                Clear(SkipCnt);
+                Clear(Flg);
+                Clear(Disc);
+                While Not Instrm.EOS do
+                begin
+                    Instrm.ReadText(Data);
+                    SkipCnt += 1;
+                    If SkipCnt > StckCnt then 
+                    begin
+                        If StrLen(Data) > 0 then
+                        begin    
+                            Flds := Data.Split(',');
+                            If Flds.count < 5 then
+                                Error('Invalid Field Count');
+                            If Flds.get(5) = '' then
+                                Error('SKU %1 has no assigned Order ID',Flds.get(1));
+                            If Not Check_Order_ID(POlist,Flds.Get(5)) then
+                                Error('SKU %1 is assigned an Order ID %2 that is not associated to any Supplier',Flds.get(1),Flds.get(5));   
+                            // see if Order ID is the same
+                            If Flds.get(5) = POlist.get(i).Split(',').get(5) then
+                            begin
+                                 If GuiAllowed then Win.Update(1,POlist.get(i).Split(',').get(1));
+                                Clear(Cst);
+                                Clear(qty);
+                                If Flds.Get(2) <> '' then
+                                    If not Evaluate(qty,Flds.get(2)) then
+                                        Error('Failed to evaluate passed Qty');
+                                If Flds.get(4) <> '' then
+                                    If not Evaluate(Cst,Flds.get(4)) then
+                                        Error('Failed to evaluate passed Cost');
+                                If (Flds.get(1) <> '') and (qty > 0) then
+                                begin    
+                                    If GuiAllowed then Win.update(2,Flds.get(1));
+                                    If Item.Get(Copystr(Flds.get(1).ToUpper(),1,20)) Then 
+                                    Begin
+                                        If Item.Type = Item.Type::Inventory then 
+                                        begin
+                                            if not Item."Purchasing Blocked" then
+                                            begin
+                                                If ItemUnit.Get(Item."No.",Copystr(Flds.get(3).ToUpper(),1,10)) then
+                                                begin 
+                                                    Flg := Item."Vendor No." =  POlist.get(i).Split(',').get(1);
+                                                    If Not Flg Then Flg := ItemVend.Get(Item."No.",POlist.get(i).Split(',').get(1),'');
+                                                    If Not Flg then
+                                                        Error('SKU %1 is not aligned to Supplier %2',Item."No.",POlist.get(i).Split(',').get(1));
+                                                end
+                                                else
+                                                    Error('Unit of Measure Code %1 not assigned to SKU %2',Copystr(Flds.get(3).ToUpper(),1,10),Item."No.")
+                                            end
+                                            else
+                                                Error('SKU %1 is purchase blocked',Item."No.");
+                                        end
+                                        else
+                                            Error('SKU %1 is not and inventory item',Item."No.");        
+                                    end
+                                    else
+                                        Error('SKU %1 does not exist',Flds.get(1).ToUpper());
+                                end
+                                else
+                                    Error('SKU %1 is not defined or qty <= 0',Flds.get(1).ToUpper()); 
+                            end;
+                        end;
+                    end;
+                end;
+            end;
+            If GuiAllowed then 
+            begin
+                Win.Close;    
+                Win.Open('Building PO    #1################'
+                        +'Adding SKU - > #2################');
+            end;            
+            For i := 1 to POlist.Count do 
+            begin
+                Clear(Instrm);
+                BlobTmp.CreateInStream(Instrm);
+                Clear(SkipCnt);
+                Clear(Flg);
+                Clear(Disc);
+                While Not Instrm.EOS do
+                begin
+                    Instrm.ReadText(Data);
+                    SkipCnt += 1;
+                    If SkipCnt > StckCnt then 
+                    begin
+                        If StrLen(Data) > 0 then
+                        begin    
+                            Flds := Data.Split(',');
+                            // see if Order ID is the same
+                            If Flds.get(5) = POlist.get(i).Split(',').get(5) then
+                            begin
+                                // build the Header
+                                If not Flg then
+                                begin
+                                    If POlist.get(i).Split(',').get(4) <> ''  then
+                                    begin
+                                        If not Evaluate(Disc,POlist.get(i).Split(',').get(4)) then
+                                            Clear(Disc);
+                                        if Disc > 100 then Clear(Disc);
+                                    end;
+                                    Clear(PurchHdr); 
+                                    PurchHdr.init;
+                                    PurchHdr.Validate("Document Type",PurchHdr."Document Type"::Order);
+                                    PurchHdr.Insert(True);
+                                    PurchHdr.Validate("Buy-from Vendor No.",Copystr(POlist.get(i).Split(',').get(1).ToUpper(),1,20));
+                                    PurchHdr.Validate("Location Code",Copystr(POlist.get(i).Split(',').get(2).ToUpper(),1,10));
+                                    If (POlist.get(i).Split(',').get(3).ToUpper() <> 'AUD') AND (POlist.get(i).Split(',').get(3).ToUpper() <> '') then
+                                        PurchHdr.Validate("Currency Code",Copystr(POlist.get(i).Split(',').get(3).ToUpper(),1,10));
+                                    If Evaluate(ReqDate,POlist.get(i).Split(',').get(6).ToUpper()) then
+                                        If ReqDate >= Today then
+                                            PurchHdr.validate("Requested Receipt Date",ReqDate);
+                                    PurchHdr."Order Type" := PurchHdr."Order Type"::NPF;   
+                                    PurchHdr.modify(true);
+                                    If GuiAllowed then Win.update(1,PurchHdr."No.");
+                                    Clear(LineNo);
+                                    Flg := True;
+                                end;
+                                If Flg then
+                                begin 
+                                    Clear(Cst);
+                                    Evaluate(qty,Flds.get(2));
+                                    If Flds.get(4) <> '' then
+                                        Evaluate(Cst,Flds.get(4));
+                                    Item.Get(Copystr(Flds.get(1).ToUpper(),1,20)); 
+                                    ItemUnit.Get(Item."No.",Copystr(Flds.get(3).ToUpper(),1,10));
+                                    Clear(LineDisc); 
+                                    Brnd.reset;
+                                    Brnd.Setrange("Supplier No.",PurchHdr."Buy-from Vendor No.");
+                                    Brnd.Setrange(Brand,Item.Brand);
+                                    If Brnd.findset then LineDisc := Brnd."PO Line Disc %";        
+                                    If GuiAllowed then win.update(2,Item."No.");
+                                    PurchLine.init;
+                                    PurchLine.validate("Document Type",PurchHdr."Document Type");
+                                    Purchline.Validate("Document No.",PurchHdr."No.");
+                                    LineNo += 10000;       
+                                    PurchLine.validate("Line No.",LineNo);
+                                    Purchline.Insert(True);
+                                    Purchline.validate(Type,Purchline.Type::Item);
+                                    Purchline.Validate("No.",Item."No.");
+                                    Purchline.validate("Unit of Measure Code",ItemUnit.Code);
+                                    Purchline.Validate(Quantity,qty);
+                                    if Cst > 0 then Purchline.Validate("Direct Unit Cost",Cst);
+                                    If Disc > 0 then
+                                        Purchline.Validate("Line discount %",Disc + LineDisc)
+                                    else If LineDisc > 0 then
+                                        Purchline.Validate("Line discount %",LineDisc);
+                                    PurchLine.modify(true);
+                                end
+                            end;
+                        end;
+                    end;
+                end;
+                Commit;
+                If Flg then
+                begin
+                    PurchLine.reset;
+                    PurchLine.Setrange("Document Type",PurchHdr."Document Type");
+                    PurchLine.Setrange("Document No.",PurchHdr."No.");
+                    If Not PurchLine.findset then
+                        PurchHdr.Delete(true)
+                    else
+                    Begin
+                        Clear(PG);
+                        Pg.SetRecord(PurchHdr);
+                        Pg.RunModal();
+                        PurchHdr.get(PurchHdr."Document Type",PurchHdr."No.");
+                        If PurchHdr."Email Status" = PurchHdr."Email Status"::Sent then
+                            POCnt[2] += 1;
+                        POCnt[1] += 1;
+                    end;                                    
+                end;
+                Commit;
+            end;
+            If GuiAllowed then
+            Begin    
+                If (POCnt[1] > 0) then Message(StrSubstNo('%1 Purchase Orders have been created with %2 Purchase Orders Emailed successfully',POCnt[1],POCnt[2]));    
+                Win.Close;
+            end;    
+        end;
+    end;
+    procedure Build_Export_PO()
+    var
+        PurchHdr:Record "Purchase Header";
+        PurchLine:Record "Purchase Line";
+        OutStrm:OutStream;
+        Instrm:InStream;
+        BlobTmp:COdeunit "Temp Blob";
+        FileName:text;
+        CRLF:text[2];
+        Win:Dialog;
+        Filter:text;
+    begin
+        PurchHdr.reset;
+        PurchHdr.Setrange("Document Type",PurchHdr."Document Type"::Order);
+        PurchHdr.Setrange(Status,PurchHdr.Status::Released);
+        PurchHdr.Setrange("Order Type",PurchHdr."Order Type"::NPF);
+        Case StrMenu('ALL,BLANK,PENDING,NOT RECEIVED,RECEIVED WITH DISCREPANCIES,RECEIVED,RECEIPT IN PROGRESS,QUARANTINE') of
+            0: exit;
+            1: 
+            begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::" ",PurchHdr."NPF ASN Status"::QUARANTINE);
+                FileName := 'ALLPOExport';
+            end;    
+            2: 
+            begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::" ");
+                FileName := 'BlankPOExport';
+            end;    
+            3: 
+            begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::PENDING);
+                FileName := 'PendingPOExport';
+            end;    
+            4: 
+            Begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::"NOT RECEIVED");
+                FileName := 'NotReceivedPOExport';
+            end;    
+            5: 
+            begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::"RECEIVED WITH DISCREPANCIES");
+                FileName := 'ReceivedWithDiscrepenciesPOExport';
+            end;    
+            6: 
+            begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::RECEIVED);
+                FileName := 'ReceivedPOExport';
+            end; 
+            7:    
+            begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::"RECEIPT IN PROGRESS");
+                FileName := 'ReceiptInProgressPOExport';
+            end;
+            else    
+            begin
+                PurchHdr.Setrange("NPF ASN Status",PurchHdr."NPF ASN Status"::QUARANTINE);
+                FileName := 'QuarantinePOExport';
+            end;    
+        end;
+        If GuiAllowed then Win.Open('Exporting PO #1##############');
+        CRLF[1] := 13;
+        CRLF[2] := 10;
+        If PurchHdr.findset then
+        begin
+            BlobTmp.CreateOutStream(OutStrm);
+            OutStrm.WriteText('Item Code,Qty(base),Unit Cost,PO#,Supplier ID,Supplier Name,Location,Delivery Date,ASN Status' + CRLF);
+            repeat
+                If GuiAllowed then Win.update(1,PurchHdr."No.");
+                PurchLine.reset;
+                PurchLine.Setrange("Document Type",PurchHdr."Document Type");
+                PurchLine.setrange("Document No.",PurchHdr."No.");
+                PurchLine.setrange(Type,PurchLine.Type::Item);
+                If PurchLine.findset then
+                repeat
+                    OutStrm.WriteText(Purchline."No." + ',');
+                    OutStrm.WriteText(Format(PurchLine."Quantity (Base)",0,'<Precision,2><Standard Format,1>') + ',');
+                    OutStrm.WriteText(Format(PurchLine."Direct Unit Cost",0,'<Precision,2><Standard Format,1>') + ',');
+                    OutStrm.WriteText(PurchHdr."No." + ',');
+                    OutStrm.WriteText(PurchHdr."Buy-from Vendor No." + ',');
+                    OutStrm.WriteText(PurchHdr."Buy-from Vendor Name" + ',');
+                    OutStrm.WriteText(PurchLine."Location Code" + ',');
+                    OutStrm.WriteText(Format(PurchHdr."Requested Receipt Date") + ',');
+                    OutStrm.WriteText(Format(PurchHdr."NPF ASN Status") + CRLF);
+                 until PurchLine.next = 0;
+            until PurchHdr.next = 0;
+            BlobTmp.CreateInStream(InStrm);
+            FileName += '.csv';
+            DownloadFromStream(Instrm,'POExport','','',FileName);
+            If GuiAllowed then Message('File ' + Filename +' has been downloaded to your windows download folder');
+         end;
+        If GuiAllowed then Win.Close();
+    end;
     procedure Build_Import_PO_Header(var PurchHdr: record "Purchase Header"; DATA: text; var Disc: Decimal)
     var
         Flds: list of [text];

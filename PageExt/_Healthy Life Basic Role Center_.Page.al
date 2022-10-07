@@ -336,8 +336,6 @@ page 80200 "Healthy Life Basic Role Center"
                     ApplicationArea = Warehouse;
                     Caption = 'Locations';
                     Image = Warehouse;
-                    Promoted = true;
-                    PromotedCategory = Process;
                     RunObject = Page "Location List";
                     ToolTip = 'View the list of warehouse locations.';
                 }
@@ -416,8 +414,6 @@ page 80200 "Healthy Life Basic Role Center"
                 {
                     ApplicationArea = Warehouse;
                     Caption = 'Item Journals';
-                    Promoted = true;
-                    PromotedCategory = Process;
                     RunObject = Page "Item Journal Batches";
                     RunPageView = WHERE("Template Type"=CONST(Item), Recurring=CONST(false));
                     ToolTip = 'Post item transactions directly to the item ledger to adjust inventory in connection with purchases, sales, and positive or negative adjustments without using documents. You can save sets of item journal lines as standard journals so that you can perform recurring postings quickly. A condensed version of the item journal function exists on item cards for quick adjustment of an items inventory quantity.';
@@ -426,8 +422,6 @@ page 80200 "Healthy Life Basic Role Center"
                 {
                     ApplicationArea = Warehouse;
                     Caption = 'Item Reclassification Journals';
-                    Promoted = true;
-                    PromotedCategory = Process;
                     RunObject = Page "Item Journal Batches";
                     RunPageView = WHERE("Template Type"=CONST(Transfer), Recurring=CONST(false));
                     ToolTip = 'Change information recorded on item ledger entries. Typical inventory information to reclassify includes dimensions and sales campaign codes, but you can also perform basic inventory transfers by reclassifying location and bin codes. Serial or lot numbers and their expiration dates must be reclassified with the Item Tracking Reclassification journal.';
@@ -436,8 +430,6 @@ page 80200 "Healthy Life Basic Role Center"
                 {
                     ApplicationArea = Warehouse;
                     Caption = 'Phys. Inventory Journals';
-                    Promoted = true;
-                    PromotedCategory = Process;
                     RunObject = Page "Item Journal Batches";
                     RunPageView = WHERE("Template Type"=CONST("Phys. Inventory"), Recurring=CONST(false));
                     ToolTip = 'Prepare to count the actual items in inventory to check if the quantity registered in the system is the same as the physical quantity. If there are differences, post them to the item ledger with the physical inventory journal before you do the inventory valuation.';
@@ -727,7 +719,6 @@ page 80200 "Healthy Life Basic Role Center"
                 ApplicationArea = Warehouse;
                 Caption = 'T&ransfer Order';
                 Image = Document;
-                Promoted = false;
                 //The property 'PromotedCategory' can only be set if the property 'Promoted' is set to 'true'
                 //PromotedCategory = Process;
                 RunObject = Page "Transfer Order";
@@ -739,8 +730,7 @@ page 80200 "Healthy Life Basic Role Center"
                 ApplicationArea = Warehouse;
                 Caption = '&Purchase Order';
                 Image = Document;
-                Promoted = false;
-                //The property 'PromotedCategory' can only be set if the property 'Promoted' is set to 'true'
+               //The property 'PromotedCategory' can only be set if the property 'Promoted' is set to 'true'
                 //PromotedCategory = Process;
                 RunObject = Page "Purchase Order";
                 RunPageMode = Create;

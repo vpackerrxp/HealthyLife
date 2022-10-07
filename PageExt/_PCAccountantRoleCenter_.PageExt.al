@@ -107,8 +107,6 @@ pageextension 80200 "PCAccountantRoleCenter" extends "9027"
             {
                 ApplicationArea = Basic, Suite;
                 Caption = 'Sales Orders';
-                Promoted = true;
-                PromotedCategory = Process;
                 RunObject = Page "Sales Order List";
                 ToolTip = 'Record your agreements with customers to sell certain products on certain delivery and payment terms. Sales orders, unlike sales invoices, allow you to ship partially, deliver directly from your vendor to your customer, initiate warehouse handling, and print various customer-facing documents. Sales invoicing is integrated in the sales order process.';
             }
@@ -119,8 +117,6 @@ pageextension 80200 "PCAccountantRoleCenter" extends "9027"
             {
                 ApplicationArea = Basic, Suite;
                 Caption = 'Sales Invoices';
-                Promoted = true;
-                PromotedCategory = Process;
                 RunObject = Page "Sales Invoice List";
                 ToolTip = 'Register your sales to customers and invite them to pay according to the delivery and payment terms by sending them a sales invoice document. Posting a sales invoice registers shipment and records an open receivable entry on the customer''s account, which will be closed when payment is received. To manage the shipment process, use sales orders, in which sales invoicing is integrated.';
             }
@@ -131,8 +127,6 @@ pageextension 80200 "PCAccountantRoleCenter" extends "9027"
             {
                 ApplicationArea = SalesReturnOrder;
                 Caption = 'Sales Return Orders';
-                Promoted = true;
-                PromotedCategory = Process;
                 RunObject = Page "Sales Return Order List";
                 ToolTip = 'Compensate your customers for incorrect or damaged items that you sent to them and received payment for. Sales return orders enable you to receive items from multiple sales documents with one sales return, automatically create related sales credit memos or other return-related documents, such as a replacement sales order, and support warehouse documents for the item handling. Note: If an erroneous sale has not been paid yet, you can simply cancel the posted sales invoice to automatically revert the financial transaction.';
             }
@@ -143,8 +137,6 @@ pageextension 80200 "PCAccountantRoleCenter" extends "9027"
             {
                 ApplicationArea = Basic, Suite;
                 Caption = 'Sales Credit Memos';
-                Promoted = true;
-                PromotedCategory = Process;
                 RunObject = Page "Sales Credit Memos";
                 ToolTip = 'Revert the financial transactions involved when your customers want to cancel a purchase or return incorrect or damaged items that you sent to them and received payment for. To include the correct information, you can create the sales credit memo from the related posted sales invoice or you can create a new sales credit memo with copied invoice information. If you need more control of the sales return process, such as warehouse documents for the physical handling, use sales return orders, in which sales credit memos are integrated. Note: If an erroneous sale has not been paid yet, you can simply cancel the posted sales invoice to automatically revert the financial transaction.';
             }

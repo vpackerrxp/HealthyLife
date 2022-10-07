@@ -48,7 +48,6 @@ table 80010 "HL Supplier Brand Rebates"
             OptionMembers = Open,Closed;
             editable = false;
         }
-
     }
     keys
     {

@@ -379,13 +379,13 @@ page 80024 "HL Shopify Order Recon"
                 ApplicationArea = All;
                 trigger OnAction();
                 var
-                    Cu:Codeunit "HL Shopify Routines";
+                    Cu:Codeunit "HL Reconcillations";
                 begin
                     If PayType <> PayType::" " then
                     begin 
                         If Confirm('Process Cash Receipts For Displayed Records Now',True) then
                         begin
-                            Cu.Build_Cash_Receipts(rec);
+                            Cu.Build_Cash_Receipts(rec,today);
                             SetFilters();
                         end 
                     end       

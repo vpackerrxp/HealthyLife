@@ -32,8 +32,6 @@ pageextension 80015 "HL Vendor List Ext" extends "Vendor List"
                     Pg.RunModal();     
                 end;
             }
-           
-            /*
             Action(MsgA)
             {
                 ApplicationArea = all;
@@ -49,7 +47,8 @@ pageextension 80015 "HL Vendor List Ext" extends "Vendor List"
                     Pg.Set_Page_Mode(3,'');
                     Pg.RunModal();     
                 end;  
-            }    
+            }
+            /*    
             Action(MsgB)
             {
                 ApplicationArea = all;

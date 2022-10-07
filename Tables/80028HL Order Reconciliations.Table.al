@@ -24,7 +24,7 @@ table 80028 "HL Order Reconciliations"
         field(50;"Payment Gate Way";Option)
         {
             Editable = false;
-            OptionMembers = ,"Shopify Pay",Paypal,AfterPay,Zip,MarketPlace,Misc;
+            OptionMembers = ,"Shopify Pay",Paypal,AfterPay,Eway,MarketPlace,Misc;
         }
         field(60;"Reference No";text[25])
         {

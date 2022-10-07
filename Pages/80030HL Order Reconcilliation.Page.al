@@ -240,7 +240,7 @@ page 80030 "HL Order Reconciliation"
                                     Glent.Setrange("G/L Account No.",GLSetup."PayPal Clearing Acc");
                                     Rec."Payment Gate Way"::AfterPay:
                                     Glent.Setrange("G/L Account No.",GLSetup."AfterPay Clearing Acc");
-                                    Rec."Payment Gate Way"::Zip:
+                                    Rec."Payment Gate Way"::Eway:
                                     Glent.Setrange("G/L Account No.",GLSetup."Zip Clearing Acc");
                                     Rec."Payment Gate Way"::MarketPlace:
                                     Glent.Setrange("G/L Account No.",GLSetup."MarketPlace Clearing Acc");
@@ -639,7 +639,7 @@ page 80030 "HL Order Reconciliation"
             2:Rec.Setrange("Payment Gate Way",Rec."Payment Gate Way"::"Shopify Pay");
             3:Rec.Setrange("Payment Gate Way",Rec."Payment Gate Way"::Paypal);
             4:Rec.Setrange("Payment Gate Way",Rec."Payment Gate Way"::AfterPay);
-            5:Rec.Setrange("Payment Gate Way",Rec."Payment Gate Way"::Zip);
+            5:Rec.Setrange("Payment Gate Way",Rec."Payment Gate Way"::Eway);
             6:Rec.Setrange("Payment Gate Way",Rec."Payment Gate Way"::MarketPlace);
             else
                 Rec.Setrange("Payment Gate Way",Rec."Payment Gate Way"::Misc);
@@ -661,7 +661,7 @@ page 80030 "HL Order Reconciliation"
                 Glent.Setrange("G/L Account No.",GLSetup."PayPal Clearing Acc");
                 Rec."Payment Gate Way"::AfterPay:
                 Glent.Setrange("G/L Account No.",GLSetup."AfterPay Clearing Acc");
-                Rec."Payment Gate Way"::Zip:
+                Rec."Payment Gate Way"::Eway:
                 Glent.Setrange("G/L Account No.",GLSetup."Zip Clearing Acc");
                 Rec."Payment Gate Way"::MarketPlace:
                 Glent.Setrange("G/L Account No.",GLSetup."MarketPlace Clearing Acc");
@@ -714,7 +714,7 @@ page 80030 "HL Order Reconciliation"
     End;
     
     var
-        Payments:Option All,"Shopify Pay",Paypal,AfterPay,Zip,MarketPlace,Misc;
+        Payments:Option All,"Shopify Pay",Paypal,AfterPay,Eway,MarketPlace,Misc;
         OrdDateFilter:Array[2] of Date;
         ApplyStat:Option All,UnApplied,CashApplied,Complete;
         OrdType:Option All,Invoice,Refund,Cancelled;

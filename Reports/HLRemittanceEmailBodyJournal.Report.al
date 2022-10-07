@@ -2,7 +2,7 @@ report 80207 HLRemittanceEmailBodyJournal
 {
     DefaultLayout = Word;
     //RDLCLayout = 'Report\HLRemittanceAdviseJournal.rdl';
-    WordLayout = '.\Reports\RemittanceAdviceEmailBodyJournal.docx';
+    WordLayout = '.\Reports\Reports\RemittanceAdviceEmailBodyJournal.docx';
     Caption = 'Remittance Advice - Journal';
 
     dataset

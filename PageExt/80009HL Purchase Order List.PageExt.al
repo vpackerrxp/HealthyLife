@@ -5,6 +5,7 @@ pageextension 80009 "HL Purchase Order List Ext" extends "Purchase Order List"
 
     layout
     {
+        
         addafter("Buy-from Vendor Name")
         {
             field("Order Type"; rec."Order Type")
@@ -15,6 +16,13 @@ pageextension 80009 "HL Purchase Order List Ext" extends "Purchase Order List"
             {
                 ApplicationArea = All;
             }
+            field("Email Status";rec."Email Status")
+            {
+                ApplicationArea = All;
+                Style = Favorable;
+                StyleExpr = rec."Email Status" = rec."Email Status"::Sent;
+            }
+
          }
     }
     actions
@@ -69,7 +77,27 @@ pageextension 80009 "HL Purchase Order List Ext" extends "Purchase Order List"
                             end;
                         end;
                     end;            
-                } 
+                }
+                 Action(Msg1A)
+                {
+                    ApplicationArea = all;
+                    Caption = 'Import/Export Purchase Orders';
+                    Image = Change;
+                    Promoted = true;
+                    PromotedCategory = Category10;
+                    ToolTip = 'Imports/Exports Purchase Orders';
+                    trigger OnAction()
+                    var
+                        CU:Codeunit "HL Import Export Routines";
+                    begin
+                        Case Strmenu('Import Purchase Orders,Export Purchase Orders') of
+                            0:Exit;
+                            1:CU.Build_Import_PO();
+                            else    
+                                CU.Build_Export_PO();
+                        End;
+                    end;            
+                }
                 Action(Msg2)
                 {
                     ApplicationArea = all;
@@ -86,7 +114,6 @@ pageextension 80009 "HL Purchase Order List Ext" extends "Purchase Order List"
                         Pg.RunModal();     
                     end;  
                 } 
-                /*   
                 Action(MsgA)
                 {
                     ApplicationArea = all;
@@ -102,7 +129,8 @@ pageextension 80009 "HL Purchase Order List Ext" extends "Purchase Order List"
                         Pg.Set_Page_Mode(3,'');
                         Pg.RunModal();     
                     end;  
-                }    
+                }
+                /*    
                 Action(MsgB)
                 {
                     ApplicationArea = all;

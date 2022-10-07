@@ -507,6 +507,7 @@ codeunit 80000 "HL Shopify Routines"
                     Clear(Jsobj1);
                     JsObj1.Add('product',JsObj);
                     JsObj1.WriteTo(PayLoad);
+                    Sleep(100);
                     If Shopify_Data(Paction::POST,ShopifyBase + 'products.json',Parms,Payload,Data) then
                     Begin
                         Data.Get('product',JsToken[1]);
@@ -761,6 +762,7 @@ codeunit 80000 "HL Shopify Routines"
                 end;     
                 jsObj1.Add('variant',JsObj);
                 JsObj1.WriteTo(PayLoad);
+                Sleep(100);
                 If Shopify_Data(Paction::PUT,
                          ShopifyBase + 'variants/'+ Format(Item[1]."Shopify Product Variant ID") +'.json'
                          ,Parms,Payload,Data) then
@@ -820,6 +822,7 @@ codeunit 80000 "HL Shopify Routines"
                         JsObj1.WriteTo(PayLoad);
                         If (Item[2]."Shopify Product Variant ID" = 0) then    
                         begin
+                            Sleep(100);
                             If Shopify_Data(Paction::POST,
                                 ShopifyBase + 'products/'+ Format(Item[1]."Shopify Product ID") +'/variants.json'
                                 ,Parms,Payload,Data) then
@@ -842,6 +845,7 @@ codeunit 80000 "HL Shopify Routines"
                         end        
                         else
                         begin
+                            Sleep(100);
                             If Shopify_Data(Paction::PUT,
                                 ShopifyBase + 'variants/'+ Format(Item[2]."Shopify Product Variant ID") + '.json'
                                 ,Parms,Payload,Data) Then
@@ -893,6 +897,7 @@ codeunit 80000 "HL Shopify Routines"
             JsObj.Add('published',False);
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
+            Sleep(100);
             if Not Shopify_Data(Paction::PUT,
                        ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
@@ -927,6 +932,7 @@ codeunit 80000 "HL Shopify Routines"
             JsObj.Add('published',PubCtrl);
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
+            Sleep(100);
             if Not Shopify_Data(Paction::PUT,
                        ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
@@ -966,6 +972,7 @@ codeunit 80000 "HL Shopify Routines"
             JsObj.Add('title',Item."Shopify Title");
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
+            Sleep(100);
             If Shopify_Data(Paction::PUT,
                        ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
@@ -998,8 +1005,8 @@ codeunit 80000 "HL Shopify Routines"
         If Log.Findset then
         begin
             Setup.get;
-            Send_Email_Msg('Shopify Item Synch Errors','Please check the shopify Update Log it contains errors for todays date','vpacker@practiva.com.au');
-            Send_Email_Msg('Shopify Item Synch Errors','Please check the shopify Update Log it contains errors for todays date',Setup."Shopify Excpt Email Address");
+            Send_Email_Msg('Shopify Item Synch Errors','Please check the Shopify Update Log it contains errors for todays date','vpacker@practiva.com.au');
+            Send_Email_Msg('Shopify Item Synch Errors','Please check the Shopify Update Log it contains errors for todays date',Setup."Shopify Excpt Email Address");
         end;
    end;     
     procedure Check_Product_ID(Item:record Item;var Cnt:integer):Text
@@ -2095,8 +2102,8 @@ codeunit 80000 "HL Shopify Routines"
                                         OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::Paypal
                                     else If PayGate.Contains('AFTER') then
                                         OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::AfterPay
-                                    else If PayGate.Contains('ZIP') then
-                                        OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::Zip;
+                                    else If PayGate.Contains('EWAY') then
+                                        OrdRec."Payment Gate Way" := OrdRec."Payment Gate Way"::Eway;
                                 end;
                                 if JsToken[1].SelectToken('source_name',JsToken[2]) then
                                     If not Jstoken[2].AsValue().IsNull then
@@ -2104,6 +2111,11 @@ codeunit 80000 "HL Shopify Routines"
                                 if JsToken[1].SelectToken('receipt',JsToken[2]) then
                                 begin
                                     If JsToken[2].SelectToken('transaction_id',JsToken[3]) then
+                                    begin
+                                        If not Jstoken[3].AsValue().IsNull then
+                                            OrdRec."Reference No" := CopyStr(JsToken[3].AsValue().AsText(),1,25)
+                                    end  
+                                    else If JsToken[2].SelectToken('TransactionID',JsToken[3]) then
                                     begin
                                         If not Jstoken[3].AsValue().IsNull then
                                             OrdRec."Reference No" := CopyStr(JsToken[3].AsValue().AsText(),1,25)
@@ -2521,6 +2533,7 @@ codeunit 80000 "HL Shopify Routines"
                                                                 begin
                                                                     OrdLine[1]."Location Code" := 'QC';
                                                                     OrdLine[1]."NPF Shipment Qty" := Ordline[1]."Order Qty";
+                                                                    OrdLine[1]."Unit Of Measure" := Item."Base Unit of Measure";
                                                                 end;
                                                             end;    
                                                         if JsToken[1].SelectToken('price',JsToken[2]) then
@@ -3098,7 +3111,7 @@ codeunit 80000 "HL Shopify Routines"
                                         If OrdLine.Findset then
                                         Begin
                                             OrdLine.CalcSums("Base Amount","Discount Amount");
-                                            ReFTot -= (OrdLine."Base Amount" - OrdLine."Discount Amount");
+                                            ReFTot -= (OrdLine."Base Amount" + OrdHdr[2]."Freight Total" - OrdLine."Discount Amount");
                                             Recon[2]."Refund Shopify ID" := OrdHdr[2]."Shopify Order ID";
                                         End;
                                     end;    
@@ -4206,258 +4219,6 @@ codeunit 80000 "HL Shopify Routines"
         Pcost[1].Setfilter("End Date",'<>%1&<%2',0D,Today);
         If Pcost[1].Findset then Pcost[1].DeleteAll(False);
     end;
-    procedure Build_Cash_Receipts(var Ordhdr:record "HL Shopify Order Header")
-    var
-        GenJrnlBatch:record "Gen. Journal Batch";
-        GenJrnl:Record "Gen. Journal Line";
-        GenTemplate:Record "Gen. Journal Template";
-        NoSeriesMgt:Codeunit NoSeriesManagement;
-        DummyCode:Code[10];
-        GLSetup:Record "General Ledger Setup"; 
-        Lineno:Integer;
-        Sinv:Record "Sales Invoice Header";
-        Scrd:record "Sales Cr.Memo Header";
-        Doc:Code[20];
-        InvTot:Decimal;
-        CrdTot:decimal;
-        GenJtrnTemp:Record "Gen. Journal Template";
-        Cu:Codeunit "Gen. Jnl.-Post";
-        PstDate:date; 
-        TmpBuff:record "HL Shopify Order Header" temporary;
-    begin
-        TmpBuff.Reset();
-        If Tmpbuff.Findset then TmpBuff.DeleteAll();
-        GLSetup.get;
-        If GLSetup."Reconcillation Bank Acc" = '' then
-        begin
-            Message('Reconciliation Bank acc not defined in General Ledger Setup');
-            exit;
-        end;    
-        If GLSetup."Reconcillation Clearing Acc" = '' then
-        begin
-            Message('Reconciliation Clearing acc not defined in General Ledger Setup');
-            exit;
-        end; 
-        If Not GenJtrnTemp.Get('CASH RECE') then
-        begin
-            GenJtrnTemp.Init();
-            GenJtrnTemp.Validate(Name,'CASH RECE');
-            GenJtrnTemp.insert;
-            GenJtrnTemp.Description := 'Cash Receipts journal';
-            GenJtrnTemp.validate(Type,GenJtrnTemp.type::"Cash Receipts");
-            GenJtrnTemp.Validate("Bal. Account Type",GenJtrnTemp."Bal. Account Type"::"G/L Account");
-            GenJtrnTemp.Validate("Source Code",'CASHRECJNL');
-            GenJtrnTemp.Validate("Force Doc. Balance",true);
-            GenJtrnTemp.Validate("Copy VAT Setup to Jnl. Lines",true);
-            GenJtrnTemp.validate("Copy to Posted Jnl. Lines",true);
-            GenJtrnTemp.Modify();
-        end;
-        If Not GenJrnlBatch.Get('CASH RECE','DEFAULT') then
-        begin
-            GenJrnlBatch.init;
-            GenJrnlBatch.validate("Journal Template Name",'CASH RECE');
-            GenJrnlBatch.Validate(Name,'DEFAULT');
-            GenJrnlBatch.Insert();
-            GenJrnlBatch.Validate("Bal. Account Type",GenJrnlBatch."Bal. Account Type"::"G/L Account");
-            GenJrnlBatch.Validate("No. Series",'GJNL-RCPT');
-            GenJrnlBatch.modify();
-        end;
-        Clear(PstDate);
-        If (GLSetup."Allow Posting To" <> 0D) AND (GLSetup."Allow Posting To" < Today) then 
-        begin
-            PstDate := GLSetup."Allow Posting To";
-            Clear(GLSetup."Allow Posting To");
-            GLSetup.MOdify(false);       
-        end;
-        Clear(InvTot);
-        Clear(CrdTot);
-        Clear(Lineno);
-        GenJrnl.reset;
-        GenJrnl.Setrange("Journal Template Name",'CASH RECE');
-        GenJrnl.Setrange("Journal Batch Name",'DEFAULT');
-        If GenJrnl.findset then GenJrnl.DeleteAll();
-        Ordhdr.Setrange("Cash Receipt Status",Ordhdr."Cash Receipt Status"::UnApplied);
-        Ordhdr.Setfilter("Order Total",'>0');
-        If Ordhdr.findset then
-        repeat
-            If Ordhdr."Order Type" = Ordhdr."Order Type"::Invoice then
-                InvTot += Ordhdr."Order Total"
-            else
-                CrdTot -= Ordhdr."Order Total";
-        until Ordhdr.next = 0;
-        if InvTot > 0 then
-        begin
-            GenJrnl.INIT;
-            GenJrnl.VALIDATE("Journal Template Name",'CASH RECE');
-            GenJrnl.VALIDATE("Journal Batch Name",'DEFAULT');
-            GenJrnl."Source Code" := 'CASHRECJNL';
-            LineNo += 10;
-            GenJrnl."Line No." := LineNo;
-            GenJrnl.INSERT(true);
-            GenJrnl.FILTERGROUP(2);
-            GenJrnl.VALIDATE("Posting Date",TODAY);
-            NoSeriesMgt.InitSeries('GJNL-RCPT','',GenJrnl."Posting Date",GenJrnl."Document No.",DummyCode);
-            Doc := GenJrnl."Document No.";
-            GenJrnl.Validate("Account Type",GenJrnl."Account Type"::"Bank Account");
-            GenJrnl.Validate("Account No.",GLSetup."Reconcillation Bank Acc");
-            GenJrnl.Description := StrSubstNo('%1 Payments For %2',Ordhdr."Payment Gate Way",Today);
-            GenJrnl.Validate("Document Type",GenJrnl."Document Type"::Payment);
-            GenJrnl.Validate(Amount,InvTot);
-            GenJrnl.Modify();
-            Ordhdr.Setrange("Order Type",Ordhdr."Order Type"::Invoice);
-            If Ordhdr.findset then
-            repeat
-                GenJrnl.INIT;
-                GenJrnl.VALIDATE("Journal Template Name",'CASH RECE');
-                GenJrnl.VALIDATE("Journal Batch Name",'DEFAULT');
-                GenJrnl."Source Code" := 'CASHRECJNL';
-                LineNo += 10;
-                GenJrnl."Line No." := LineNo;
-                GenJrnl.INSERT(true);
-                GenJrnl.FILTERGROUP(2);
-                GenJrnl.VALIDATE("Posting Date",TODAY);
-                GenJrnl."Document No." := Doc;
-                GenJrnl.Validate("Account Type",GenJrnl."Account Type"::"G/L Account");
-                GenJrnl.Validate("Account No.",GLsetup."Reconcillation Clearing Acc");
-                GenJrnl.Description := StrSubstNo('Shopify Order No %1 for Order Date %2 - ' + Ordhdr."Payment Gate Way",Ordhdr."Shopify Order No.",Ordhdr."Shopify Order Date");
-                GenJrnl.Validate("Document Type",GenJrnl."Document Type"::Payment);
-                GenJrnl.Validate(Amount,-Ordhdr."Order Total");
-                GenJrnl.Modify();
-                Ordhdr."Cash Receipt Status" := Ordhdr."Cash Receipt Status"::Applied;
-                Ordhdr.Modify();
-                TmpBuff.Copy(Ordhdr);
-                TmpBuff.insert;
-            until Ordhdr.next = 0;
-            Commit;
-        end;
-        if CrdTot < 0 then
-        begin
-            GenJrnl.INIT;
-            GenJrnl.VALIDATE("Journal Template Name",'CASH RECE');
-            GenJrnl.VALIDATE("Journal Batch Name",'DEFAULT');
-            GenJrnl."Source Code" := 'CASHRECJNL';
-            LineNo += 10;
-            GenJrnl."Line No." := LineNo;
-            GenJrnl.INSERT(true);
-            GenJrnl.FILTERGROUP(2);
-            GenJrnl.VALIDATE("Posting Date",TODAY);
-            NoSeriesMgt.InitSeries('GJNL-RCPT','',GenJrnl."Posting Date",GenJrnl."Document No.",DummyCode);
-            Doc := GenJrnl."Document No.";
-            GenJrnl.Validate("Account Type",GenJrnl."Account Type"::"Bank Account");
-            GenJrnl.Validate("Account No.",GLSetup."Reconcillation Bank Acc");
-            GenJrnl.Description := StrSubstNo('%1 Refunds For %2',Ordhdr."Payment Gate Way",Today);
-            GenJrnl.Validate("Document Type",GenJrnl."Document Type"::Refund);
-            GenJrnl.Validate(Amount,CrdTot);
-            GenJrnl.Modify();
-            Ordhdr.Setrange("Order Type",Ordhdr."Order Type"::CreditMemo);
-            If Ordhdr.findset then
-            repeat
-                GenJrnl.INIT;
-                GenJrnl.VALIDATE("Journal Template Name",'CASH RECE');
-                GenJrnl.VALIDATE("Journal Batch Name",'DEFAULT');
-                GenJrnl."Source Code" := 'CASHRECJNL';
-                LineNo += 10;
-                GenJrnl."Line No." := LineNo;
-                GenJrnl.INSERT(true);
-                GenJrnl.FILTERGROUP(2);
-                GenJrnl.VALIDATE("Posting Date",TODAY);
-                GenJrnl."Document No." := Doc;
-                GenJrnl.Validate("Account Type",GenJrnl."Account Type"::"G/L Account");
-                GenJrnl.Validate("Account No.",GLsetup."Reconcillation Clearing Acc");
-                GenJrnl.Description := StrSubstNo('Shopify Order No %1 for Order Date %2 - ' + Ordhdr."Payment Gate Way", Ordhdr."Shopify Order No.",Ordhdr."Shopify Order Date");
-                GenJrnl.Validate("Document Type",GenJrnl."Document Type"::Refund);
-                GenJrnl.Validate(Amount,Ordhdr."Order Total");
-                GenJrnl.Modify();
-                Ordhdr."Cash Receipt Status" := Ordhdr."Cash Receipt Status"::Applied;
-                Ordhdr.Modify();
-                TmpBuff.Copy(Ordhdr);
-                TmpBuff.insert;
-            until Ordhdr.next = 0;
-            Commit;
-        end;
-        Clear(Doc);
-        Ordhdr.Setrange("Order Type");
-        Ordhdr.Setrange("Cash Receipt Status",Ordhdr."Cash Receipt Status"::Applied);
-        Ordhdr.Setrange("Invoice Applied Status",Ordhdr."Invoice Applied Status"::UnApplied);
-        Ordhdr.Setfilter("BC Reference No.",'<>%1&<>%2','','N/A');
-        Ordhdr.Setfilter("Order Total",'>0');
-        If Ordhdr.findset then
-        repeat
-            Clear(Doc);
-            If Sinv.get(Ordhdr."BC Reference No.") AND (Ordhdr."Order Type" = Ordhdr."Order Type"::Invoice) then
-                Doc := Sinv."No."
-            else If Scrd.Get(Ordhdr."BC Reference No.") and (Ordhdr."Order Type" = Ordhdr."Order Type"::CreditMemo) then
-                Doc := Scrd."No.";
-            If doc <> '' then
-            begin
-                GenJrnl.INIT;
-                GenJrnl.VALIDATE("Journal Template Name",'CASH RECE');
-                GenJrnl.VALIDATE("Journal Batch Name",'DEFAULT');
-                GenJrnl."Source Code" := 'CASHRECJNL';
-                LineNo += 10;
-                GenJrnl."Line No." := LineNo;
-                GenJrnl.INSERT(true);
-                GenJrnl.FILTERGROUP(2);
-                GenJrnl.VALIDATE("Posting Date",TODAY);
-                NoSeriesMgt.InitSeries('GJNL-RCPT','',GenJrnl."Posting Date",GenJrnl."Document No.",DummyCode);
-                GenJrnl.VALIDATE("Account Type",GenJrnl."Account Type"::Customer);
-                GenJrnl.VALIDATE("Account No.",'HEALTHY LIFE');
-                GenJrnl.Validate("Bal. Account Type",GenJrnl."Bal. Account Type"::"G/L Account");
-                GenJrnl.Validate("Bal. Account No.",GLSetup."Reconcillation Clearing Acc");
-                GenJrnl.Description := StrSubstNo('Shopify Order No %1 for Order Date %2',Ordhdr."Shopify Order No.",Ordhdr."Shopify Order Date");
-                If Ordhdr."Order Type" = Ordhdr."Order Type"::Invoice then
-                begin
-                    GenJrnl.Validate("Document Type",GenJrnl."Document Type"::Payment);
-                    GenJrnl.Validate(Amount,-Ordhdr."Order Total");
-                    GenJrnl."Applies-to Doc. Type" := GenJrnl."Applies-to Doc. Type"::Invoice;
-                end    
-                else
-                begin
-                    GenJrnl.Validate("Document Type",GenJrnl."Document Type"::Refund);
-                    GenJrnl.Validate(Amount,Ordhdr."Order Total");
-                    GenJrnl."Applies-to Doc. Type" := GenJrnl."Applies-to Doc. Type"::"Credit Memo";
-                end;
-                GenJrnl."Applies-to Doc. No." := Doc;
-                GenJrnl.Modify();
-                Ordhdr."Invoice Applied Status" := Ordhdr."Invoice Applied Status"::Applied;
-                Ordhdr.Modify();
-                TmpBuff.Copy(Ordhdr);
-                If TmpBuff.Get(Ordhdr.ID) then
-                    TmpBuff.modify
-                else
-                    Tmpbuff.Insert();    
-            end;
-        until Ordhdr.next = 0;
-        Commit; 
-        if Not GenJrnl.IsEmpty then 
-        Begin
-            if not Cu.Run(GenJrnl) then
-            begin
-                TmpBuff.Reset;
-                TmpBuff.Findset;
-                repeat
-                    Ordhdr.Get(TmpBuff.ID);
-                    Ordhdr."Cash Receipt Status" := Ordhdr."Cash Receipt Status"::UnApplied;
-                    Ordhdr."Invoice Applied Status" := Ordhdr."Invoice Applied Status"::UnApplied;
-                    Ordhdr.Modify();
-                until TmpBuff.next = 0;    
-            end;
-        end;        
-        If PstDate <> 0D then
-        begin
-            GLSetup."Allow Posting To" := PstDate;
-            GLSetup.Modify(false);
-        end;
-    end;   
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Gen. Jnl.-Post", 'OnBeforeCode', '', true, true)]
-    local procedure "Gen. Jnl.-Post_OnBeforeCode"
-    (
-        var GenJournalLine: Record "Gen. Journal Line";
-		var HideDialog: Boolean
-    )
-    begin
-        HideDialog := True;
-    end;
  
     [EventSubscriber(ObjectType::Codeunit, Codeunit::"Sales-Post", 'OnAfterPostItemLine', '', true, true)]
     local procedure "Update Accural Rebates"
@@ -4521,6 +4282,103 @@ codeunit 80000 "HL Shopify Routines"
                     end;    
                 until (RebSku.Next = 0) And Flg;
             end;
+        end;
+    end;
+    procedure Send_PO_Email(PurchHdr:record "Purchase Header";Recips:text):Boolean;
+    var
+        Ven:record Vendor;
+        CustRepSel:Record "Custom Report Selection";
+        CustRep:Record "Custom Report Layout";
+        PurchHdrloc:Record "Purchase Header"; 
+        DocSendProf:record "Document Sending Profile";
+    begin
+        DocSendProf.Reset;
+        DocSendProf.Setrange(Code,'HL PURCH');
+        If not DocSendProf.Findset then
+        begin
+            DocSendProf.Init;
+            DocSendProf.Validate(Code,'HL PURCH');
+            DocSendProf.Description := 'HL Purchase Doc Profile';               
+            DocSendProf.Validate(Printer,DocSendProf.Printer::No);
+            DocSendProf.Validate("E-Mail",DocSendProf."E-Mail"::"Yes (Prompt for Settings)");
+            DocSendProf.validate("E-Mail Attachment",DocSendProf."E-Mail Attachment"::PDF);
+            DocSendProf.Validate(Disk,DocSendProf.Disk::No);
+            DocSendProf.validate("Electronic Document",DocSendProf."Electronic Document"::No);
+            DocSendProf.Validate(Default,False);
+            DocSendProf.Insert();
+        end;    
+        ven.Get(PurchHdr."Buy-from Vendor No.");
+        If Ven."Document Sending Profile" = '' then
+        begin
+            Ven."Document Sending Profile" := DocSendProf.Code;
+            Ven.Modify(False);
+            Commit;
+        end;    
+        If Ven."Operations E-Mail".Contains('@') then
+        begin
+            CustRep.Reset;
+            CustRep.Setrange("Report ID",80201);
+            CustRep.Setrange("Built-In",False);
+            CustRep.Setrange(Type,CustRep.Type::Word);
+            If Not CustRep.Findset then
+                Error('Custom Report Layout 80201 is not defined');
+            CustRepSel.reset;
+            CustRepSel.Setrange("Source Type",Database::Vendor);
+            CustRepSel.Setrange("Source No.",PurchHdr."Buy-from Vendor No.");
+            CustRepSel.Setrange(Usage,CustRepSel.Usage::"P.Order");
+            If CustRepSel.Findset then CustRepSel.DeleteAll(true);
+            CustRepSel.Init;
+            CustRepSel.Validate("Source Type",Database::Vendor);
+            CustRepSel.Validate("Source No.",PurchHdr."Buy-from Vendor No.");
+            CustRepSel.Validate(Usage,CustRepSel.Usage::"P.Order");
+            CustRepSel.Validate(Sequence,1);
+            CustRepSel.Validate("Report ID",80201);
+            CustRepSel.Insert(true);
+            CustRepSel.Validate("Use for Email Attachment",true);
+            CustRepSel.Validate("Use for Email Body",true);
+            CustRepSel.validate("Email Body Layout Code",CustRep.Code);
+            CustRepSel."Send To Email"  := Recips;
+            CustRepSel.Modify();
+            Commit;
+            PurchHdrloc.Reset();
+            PurchHdrloc.Setrange("Document Type",PurchHdr."Document Type");
+            PurchHdrloc.Setrange("No.",PurchHdr."No.");
+            PurchHdrloc.findset;
+            PurchHdrloc.SendRecords();
+        end    
+        else
+            Error('Operation Email %1 is invalid email Address',Ven."Operations E-Mail");
+    end;
+
+    [EventSubscriber(ObjectType::Table, Database::"Document Sending Profile", 'OnSendVendorRecordsOnBeforeLookupProfile', '', true, true)]
+    local procedure "Document Sending Profile_OnSendVendorRecordsOnBeforeLookupProfile"
+    (
+        ReportUsage: Integer;
+		RecordVariant: Variant;
+		VendorNo: Code[20];
+		var RecRefToSend: RecordRef;
+		SingleVendorSelected: Boolean;
+		var ShowDialog: Boolean
+    )
+    begin
+        ShowDialog := False;
+    end;
+    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Document-Mailing", 'OnAfterEmailSentSuccesfully', '', true, true)]
+    local procedure "Document-Mailing_OnAfterEmailSentSuccesfully"
+    (
+        var TempEmailItem: Record "Email Item";
+		PostedDocNo: Code[20];
+		ReportUsage: Integer
+    )
+    var
+        Flds:list of [text]; 
+        PurHdr:record "Purchase Header";
+        Flg:boolean;
+    begin
+        If PurHdr.Get(PurHdr."Document Type"::Order,PostedDocNo) then
+        begin
+            PurHdr."Email Status" := PurHdr."Email Status"::Sent;
+            PurHdr.Modify(False);
         end;
     end;    
 }

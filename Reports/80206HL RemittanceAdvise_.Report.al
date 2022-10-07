@@ -2,8 +2,8 @@ report 80206 "HL RemittanceAdvise Body"
 {
     DefaultLayout = Word;
     Caption = 'Remittance Advice Email Body - Entries';
-    RDLCLayout = '.\Form5.rdl';
-    WordLayout = '.\Reports\RemittanceAdviceEmailBody.docx';
+    RDLCLayout = '.\Reports\Report\Form5.rdl';
+    WordLayout = '.\Reports\Report\RemittanceAdviceEmailBody.docx';
     PreviewMode = PrintLayout;
     WordMergeDataItem = "Vendor Ledger Entry";
 

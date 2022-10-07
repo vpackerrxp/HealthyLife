@@ -195,7 +195,7 @@ codeunit 80005 "HL Reconcillations"
                 GenJrnl.VALIDATE("Posting Date",PostDate);
                 NoSeriesMgt.InitSeries('GJNL-RCPT','',GenJrnl."Posting Date",GenJrnl."Document No.",DummyCode);
                 GenJrnl.VALIDATE("Account Type",GenJrnl."Account Type"::Customer);
-                GenJrnl.VALIDATE("Account No.",'PETCULTURE');
+                GenJrnl.VALIDATE("Account No.",'HEALTHY LIFE');
                 GenJrnl.Validate("Bal. Account Type",GenJrnl."Bal. Account Type"::"G/L Account");
                 GenJrnl.Validate("Bal. Account No.",GLSetup."Reconcillation Clearing Acc");
                 GenJrnl.Description := StrSubstNo('Shopify Order No %1 for Order Date %2',Buff."Shopify Order No.",Buff."Shopify Order Date");
@@ -284,7 +284,7 @@ codeunit 80005 "HL Reconcillations"
         If Not Buff.IsEmpty then
         begin    
             Case Buff."Payment Gate Way" of 
-                Buff."Payment Gate Way"::"Shopify Pay":
+                /*Buff."Payment Gate Way"::"Shopify Pay":
                 begin
                     If GLSetup."Shopify Pay Clearing Acc" = '' then
                     begin
@@ -292,7 +292,7 @@ codeunit 80005 "HL Reconcillations"
                         exit;
                     end;
                     ClearAcc := GLSetup."Shopify Pay Clearing Acc";    
-                end;
+                end;*/
                 Buff."Payment Gate Way"::PayPal:
                 begin
                     If GLSetup."PayPal Clearing Acc" = '' then
@@ -320,11 +320,11 @@ codeunit 80005 "HL Reconcillations"
                     end;    
                     ClearAcc := GLSetup."MarketPlace Clearing Acc";    
                 end;
-                Buff."Payment Gate Way"::Zip:
+                Buff."Payment Gate Way"::Eway:
                 begin
                     If GLSetup."Zip Clearing Acc" = '' then
                     begin
-                        Message('Zip Clearing acc not defined in General Ledger Setup');
+                        Message('Eway Clearing acc not defined in General Ledger Setup');
                         exit;
                     end;    
                     ClearAcc := GLSetup."Zip Clearing Acc";    
@@ -546,7 +546,7 @@ codeunit 80005 "HL Reconcillations"
                 RecCon."Payment Gate Way"::"Shopify Pay": ClearAcc := GLSetup."Shopify Pay Clearing Acc"; 
                 RecCon."Payment Gate Way"::Paypal: ClearAcc := GLSetup."PayPal Clearing Acc"; 
                 RecCon."Payment Gate Way"::AfterPay :ClearAcc := GLSetup."AfterPay Clearing Acc"; 
-                RecCon."Payment Gate Way"::Zip:ClearAcc := GLSetup."Zip Clearing Acc"; 
+                RecCon."Payment Gate Way"::Eway:ClearAcc := GLSetup."Zip Clearing Acc"; 
                 RecCon."Payment Gate Way"::MarketPlace: ClearAcc := GLSetup."MarketPlace Clearing Acc"; 
                 RecCon."Payment Gate Way"::Misc: ClearAcc := GLSetup."Misc Clearing Acc";
             end;     
@@ -613,7 +613,7 @@ codeunit 80005 "HL Reconcillations"
                         GenJrnl.VALIDATE("Posting Date",PostDate);
                         NoSeriesMgt.InitSeries('GJNL-RCPT','',GenJrnl."Posting Date",GenJrnl."Document No.",DummyCode);
                         GenJrnl.VALIDATE("Account Type",GenJrnl."Account Type"::Customer);
-                        GenJrnl.VALIDATE("Account No.",'PETCULTURE');
+                        GenJrnl.VALIDATE("Account No.",'HEALTHY LIFE');
                         GenJrnl.Validate("Bal. Account Type",GenJrnl."Bal. Account Type"::"G/L Account");
                         GenJrnl.Validate("Bal. Account No.",ClearAcc);
                         GenJrnl.Description := StrSubstNo('Shopify Order No %1 for Order Date %2',RecCon."Shopify Order No",RecCon."Shopify Order Date");
@@ -713,11 +713,12 @@ codeunit 80005 "HL Reconcillations"
             Message('Reconcilliation Bank acc not defined in General Ledger Setup');
             exit;
         end;
-        If GLSetup."Shopify Pay Clearing Acc" = '' then
+     /*   If GLSetup."Shopify Pay Clearing Acc" = '' then
         begin
             Message('Shopify Pay Clearing acc not defined in General Ledger Setup');
             exit;
         end;
+     */   
         If GLSetup."PayPal Clearing Acc" = '' then
         begin
             Message('PayPal Clearing acc not defined in General Ledger Setup');
@@ -735,7 +736,7 @@ codeunit 80005 "HL Reconcillations"
         end;    
         If GLSetup."Zip Clearing Acc" = '' then
         begin
-            Message('Zip Clearing acc not defined in General Ledger Setup');
+            Message('Eway Clearing acc not defined in General Ledger Setup');
             exit;
         end;    
         If GLSetup."Misc Clearing Acc" = '' then
@@ -799,7 +800,7 @@ codeunit 80005 "HL Reconcillations"
                 RecCon."Payment Gate Way"::"Shopify Pay": ClearAcc := GLSetup."Shopify Pay Clearing Acc"; 
                 RecCon."Payment Gate Way"::Paypal: ClearAcc := GLSetup."PayPal Clearing Acc"; 
                 RecCon."Payment Gate Way"::AfterPay :ClearAcc := GLSetup."AfterPay Clearing Acc"; 
-                RecCon."Payment Gate Way"::Zip:ClearAcc := GLSetup."Zip Clearing Acc"; 
+                RecCon."Payment Gate Way"::Eway:ClearAcc := GLSetup."Zip Clearing Acc"; 
                 RecCon."Payment Gate Way"::MarketPlace: ClearAcc := GLSetup."MarketPlace Clearing Acc"; 
                 RecCon."Payment Gate Way"::Misc: ClearAcc := GLSetup."Misc Clearing Acc";
             end;     
@@ -867,7 +868,7 @@ codeunit 80005 "HL Reconcillations"
                         GenJrnl.VALIDATE("Posting Date",PostDate);
                         NoSeriesMgt.InitSeries('GJNL-RCPT','',GenJrnl."Posting Date",GenJrnl."Document No.",DummyCode);
                         GenJrnl.VALIDATE("Account Type",GenJrnl."Account Type"::Customer);
-                        GenJrnl.VALIDATE("Account No.",'PETCULTURE');
+                        GenJrnl.VALIDATE("Account No.",'HEALTHY LIFE');
                         GenJrnl.Validate("Bal. Account Type",GenJrnl."Bal. Account Type"::"G/L Account");
                         GenJrnl.Validate("Bal. Account No.",ClearAcc);
                         GenJrnl.Description := StrSubstNo('Shopify Order No %1 for Order Date %2',RecCon."Shopify Order No",RecCon."Shopify Order Date");

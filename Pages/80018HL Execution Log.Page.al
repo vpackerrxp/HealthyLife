@@ -166,9 +166,9 @@ page 80018 "HL Execution Log"
     begin
         rec.Reset;
         rec.SetAscending(ID,false);
-        Rec.Setrange("Execution Type",rec."Execution Type"::WebService);
+        Rec.Setrange("Execution Type",rec."Execution Type"::Process);
         if Exdate <> 0D then
-             rec.SetRange("Execution Start Time",CreateDateTime(Exdate,000000T),CreateDateTime(Exdate,235959T));
+             rec.SetRange("Execution Start Time",CreateDateTime(Exdate,0T),CreateDateTime(Exdate,235959T));
         If Stat <> Stat::ALL then rec.SetRange(Status,Stat-1);
         CurrPage.Update(false);
     end;    

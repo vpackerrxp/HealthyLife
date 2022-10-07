@@ -132,6 +132,7 @@ table 80001 "HL Shopify Item Relations"
         DelTrck.Price := Item[1]."Current Price";
         DelTrck."Parent Name" := Item[2]."Shopify Title";
         DelTrck."Child Name" := Item[1]."Shopify Selling Option 1";
+        DelTrck.Position := Rec."Child Position";
         DelTrck.Modify(false);
     end;
     trigger OnRename()

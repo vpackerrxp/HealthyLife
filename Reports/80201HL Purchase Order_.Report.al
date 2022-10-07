@@ -1,7 +1,7 @@
 report 80201 "HL Purchase Order"
 {
     DefaultLayout = RDLC;
-    RDLCLayout = 'Report\PurchaseOrder.rdl';
+    RDLCLayout = 'Reports\Report\PurchaseOrder.rdl';
     Caption = 'Order';
     PreviewMode = PrintLayout;
 
@@ -13,13 +13,27 @@ report 80201 "HL Purchase Order"
             RequestFilterFields = "No.", "Buy-from Vendor No.", "No. Printed";
             RequestFilterHeading = 'Purchase Order';
 
+            column(OrderNo_Lbl; OrderNoCaptionLbl)
+            {
+            }
+            column(OrderDate_PurchaseHeader; Format("Order Date", 0, 4))
+            {
+            }
+            column(OrderDate_Lbl; OrderDateLbl)
+            {
+            }
+            column(TotalAmountInclVAT; TotalAmountInclVAT)
+            {
+                AutoFormatExpression = "Purchase Header"."Currency Code";
+                AutoFormatType = 1;
+            }
             column(DocumentType_PurchHdr;"Document Type")
             {
             }
             column(No_PurchHdr;"No.")
             {
             }
-            column(Requested_Receipt_Date;"Requested Receipt Date")
+            column(Requested_Receipt_Date;Format("Requested Receipt Date",0,'<day,2>/<month,2>/<year4>'))
             {
             }
             column(AmtCaption;AmtCaptionLbl)
@@ -991,10 +1005,14 @@ report 80201 "HL Purchase Order"
     labels
     {
     }
-    trigger OnInitReport()begin
+    trigger OnInitReport()
+    var
+        RLS:record "Report Layout Selection";
+    begin
         GLSetup.Get();
         CompanyInfo.Get();
         PurchSetup.Get();
+        //RLS.SetTempLayoutSelected();
         OnAfterInitReport;
     end;
     trigger OnPostReport()begin
@@ -1079,6 +1097,7 @@ report 80201 "HL Purchase Order"
     TotalSubTotal: Decimal;
     TotalAmount: Decimal;
     TotalInvoiceDiscountAmount: Decimal;
+    OrderDateLbl: Label 'Order Date';
     PhoneNoCaptionLbl: Label 'Phone No.';
     VATRegNoCaptionLbl: Label 'VAT Registration No.';
     GiroNoCaptionLbl: Label 'Giro No.';

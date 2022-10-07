@@ -1,7 +1,7 @@
 report 80203 "PC Purchase - Credit Memo"
 {
     DefaultLayout = RDLC;
-    RDLCLayout = 'Report\PurchaseCreditNote.rdl';
+    RDLCLayout = 'Reports\Report\PurchaseCreditNote.rdl';
     Caption = 'Purchase - Credit Memo';
     PreviewMode = PrintLayout;
 

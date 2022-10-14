@@ -107,9 +107,9 @@ Codeunit 80002 "HL Import Export Routines"
                             If Flds.count < 5 then
                                 Error('Invalid Field Count');
                             If Flds.get(5) = '' then
-                                Error('SKU %1 has no assigned Order ID',Flds.get(1));
+                                Error('SKU -> %1 has no assigned Order ID',Flds.get(1));
                             If Not Check_Order_ID(POlist,Flds.Get(5)) then
-                                Error('SKU %1 is assigned an Order ID %2 that is not associated to any Supplier',Flds.get(1),Flds.get(5));   
+                                Error('SKU -> %1 is assigned an Order ID %2 that is not associated to any Supplier',Flds.get(1),Flds.get(5));   
                             // see if Order ID is the same
                             If Flds.get(5) = POlist.get(i).Split(',').get(5) then
                             begin
@@ -136,19 +136,19 @@ Codeunit 80002 "HL Import Export Routines"
                                                     Flg := Item."Vendor No." =  POlist.get(i).Split(',').get(1);
                                                     If Not Flg Then Flg := ItemVend.Get(Item."No.",POlist.get(i).Split(',').get(1),'');
                                                     If Not Flg then
-                                                        Error('SKU %1 is not aligned to Supplier %2',Item."No.",POlist.get(i).Split(',').get(1));
+                                                        Error('SKU -> %1 is not aligned to Supplier %2',Item."No.",POlist.get(i).Split(',').get(1));
                                                 end
                                                 else
                                                     Error('Unit of Measure Code %1 not assigned to SKU %2',Copystr(Flds.get(3).ToUpper(),1,10),Item."No.")
                                             end
                                             else
-                                                Error('SKU %1 is purchase blocked',Item."No.");
+                                                Error('SKU -> %1 is purchase blocked',Item."No.");
                                         end
                                         else
-                                            Error('SKU %1 is not and inventory item',Item."No.");        
+                                            Error('SKU -> %1 is not and inventory item',Item."No.");        
                                     end
                                     else
-                                        Error('SKU %1 does not exist',Flds.get(1).ToUpper());
+                                        Error('SKU -> %1 does not exist',Flds.get(1).ToUpper());
                                 end
                                 else
                                     Error('SKU %1 is not defined or qty <= 0',Flds.get(1).ToUpper()); 

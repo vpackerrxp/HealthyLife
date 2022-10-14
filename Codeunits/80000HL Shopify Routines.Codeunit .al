@@ -1002,13 +1002,14 @@ codeunit 80000 "HL Shopify Routines"
         Commit;
         Log.Reset;
         Log.Setfilter("Error Date/Time",'>=%1',CreateDateTime(Today(),0T));
+        Log.Setrange("Web Service Error",'');
         If Log.Findset then
         begin
             Setup.get;
             Send_Email_Msg('Shopify Item Synch Errors','Please check the Shopify Update Log it contains errors for todays date','vpacker@practiva.com.au');
             Send_Email_Msg('Shopify Item Synch Errors','Please check the Shopify Update Log it contains errors for todays date',Setup."Shopify Excpt Email Address");
         end;
-   end;     
+    end;     
     procedure Check_Product_ID(Item:record Item;var Cnt:integer):Text
     Var 
         Data:JsonObject;

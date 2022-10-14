@@ -80,7 +80,10 @@ tableextension 80001 "HL Items Ext" extends Item
             trigger OnAfterValidate()
             begin
                 If (Xrec."GTIN" <> Rec."GTIN") Then
+                begin
                     rec."Shopify Transfer Flag" := true;
+                    Update_WebService_Flag();
+                end;    
             end;
         }
         Modify("VAT Prod. Posting Group")
@@ -91,6 +94,7 @@ tableextension 80001 "HL Items Ext" extends Item
                 begin
                     "Price Includes VAT" := Rec."VAT Prod. Posting Group" = 'GST10';
                     Update_Parent();
+                    Update_WebService_Flag();
                 end;
             end;
         }
@@ -240,6 +244,7 @@ tableextension 80001 "HL Items Ext" extends Item
                 begin
                     rec."Shopify Transfer Flag" := true;
                     Update_Parent();
+                    Update_WebService_Flag();
                 end;
            end;    
         }

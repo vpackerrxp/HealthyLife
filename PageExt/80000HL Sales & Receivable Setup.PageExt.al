@@ -521,6 +521,15 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                     val:BigInteger;
                     CU:Codeunit Test;
                 begin
+                    Item.Reset;
+                    Item.Setrange(Type,Item.Type::Inventory);
+                    Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
+                    if Item.findset then
+                        Item.ModifyAll("Web Service Update Flag",True,False);
+                    exit;    
+
+
+
                     CU.Testrun();
                     Exit;
                     //Cu.Testrun();

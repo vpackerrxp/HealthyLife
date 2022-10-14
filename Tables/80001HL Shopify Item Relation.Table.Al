@@ -39,8 +39,8 @@ table 80001 "HL Shopify Item Relations"
                 If rec."Child Position" <> xRec."Child Position" then
                 begin
                     Item.get(Rec."Child Item No.");
-                    Item."Web Service Update Flag" := True;
-                    Item.Modify(True);
+                    Item.Update_WebService_Flag();
+                    Item.Modify(false);
                 end;    
             end;        
         }
@@ -54,8 +54,8 @@ table 80001 "HL Shopify Item Relations"
                 If rec."Un Publish Child" <> xRec."Un Publish Child" then
                 begin
                     Item.get(Rec."Child Item No.");
-                    Item."Web Service Update Flag" := True;
-                    Item.Modify(True);
+                    Item.Update_WebService_Flag();
+                    Item.Modify(False);
                 end;    
             end;        
         }
@@ -69,6 +69,7 @@ table 80001 "HL Shopify Item Relations"
         }
         field(70;"Update Required"; Boolean)
         {
+            Editable = false;
         }
     }
     keys

@@ -89,8 +89,8 @@ page 80026 "HL Purchase Email Confirmation"
                         Recip:text;
                         i:Integer;
                         Cu:Codeunit "HL Shopify Routines";
-                        CuN:Codeunit "HL NPF Routines";
-                    begin
+                        Cun:Codeunit "HL NPF Routines";
+                     begin
                         Clear(Recip);
                         Msg := 'Email PO To Recipents ';
                         For i := 1 to ArrayLen(EmailRecp) do
@@ -104,12 +104,12 @@ page 80026 "HL Purchase Email Confirmation"
                         Msg += ' Now?'; 
                         If Strlen(Recip) <= 200 then
                         begin       
-                            if Confirm(Msg,True) then
-                                CU.Send_PO_Email(rec,Recip);
-                            Rec.Status := Rec.Status::Released;
-                            Rec.Modify(False);
-                            Commit;   
-                            If CuN.Create_Update_ASN(Rec) then
+                            if Confirm(Msg,True) then CU.Send_PO_Email(rec,Recip);
+                            rec.find('=');
+                            rec.Status := rec.Status::Released;
+                            rec.Modify(False);
+                            Commit;
+                            If Cun.Create_Update_ASN(rec) then
                                 Message('NPF ASN Creation Successfull')
                             else
                                 Message('NPF ASN Creation UnSuccessfull');
@@ -134,7 +134,6 @@ page 80026 "HL Purchase Email Confirmation"
     begin
         OpEm:= Get_Email_Recipent();
     end;
-
     Local procedure Get_Email_Recipent():text
     Var
         Vend:Record Vendor;

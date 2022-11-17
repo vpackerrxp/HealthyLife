@@ -251,7 +251,7 @@ pageextension 80001 "HL Item Card Ext" extends "Item Card"
                                 begin
                                     Rec."Shopify Update Flag" := True;
                                     Rec.Modify(false);    
-                                    Cu.Process_Items(Rec."No.");
+                                    Cu.Process_Items(Rec."No.",false);
                                 end;    
                             end        
                             else
@@ -259,7 +259,7 @@ pageextension 80001 "HL Item Card Ext" extends "Item Card"
                                 // now check that this is a standalone ie Not a Child any more
                                 Rel.Setrange("Parent Item No.");
                                 Rel.Setrange("Child Item No.",rec."No.");
-                                If Not Rel.findset then Cu.Process_Items(Rec."No.")    
+                                If Not Rel.findset then Cu.Process_Items(Rec."No.",false)    
                             end;        
                             Currpage.Update(False);
                         end;
@@ -553,7 +553,7 @@ pageextension 80001 "HL Item Card Ext" extends "Item Card"
                         If Flg then
                         begin 
                             If Confirm('Synchronise Item with Shopify Now?',True) then
-                                cu.Process_Items(rec."No.");
+                                cu.Process_Items(rec."No.",false);
                         end         
                         else
                             Message('Only valid for shopify parents/stand alone items');

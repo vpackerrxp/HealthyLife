@@ -111,7 +111,7 @@ pageextension 80003 "HL Customer List Ext" extends "Customer List"
                 Caption = 'Setup';
                 Image = Change;
                 Promoted = true;
-                PromotedCategory = Category11;
+                PromotedCategory = Category10;
                 RunObject = Page "Sales & Receivables Setup";
             }
             action("HLG")

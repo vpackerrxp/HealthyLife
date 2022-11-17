@@ -42,7 +42,37 @@ pageextension 80002 "HL Item List Ext" extends "Item List"
                     var
                         cu:Codeunit "HL Shopify Routines";
                     begin
-                        If Confirm('Synchronise All Shopify Items Now?',True) then cu.Process_Items('');
+                        If Confirm('Synchronise All Shopify Items Now?',True) then cu.Process_Items('',false);
+                    end;
+                }
+                action(MsgXX)
+                {
+                    ApplicationArea = all;
+                    Caption = 'Synchronise All Shopify Items Pricing';
+                    Image = Change;
+                    Promoted = true;
+                    PromotedCategory = Category11;
+                    ToolTip = 'Updates All Shopify Items Pricing';
+                    trigger OnAction()
+                     var
+                        cu:Codeunit "HL Shopify Routines";
+                    begin
+                        If Confirm('Synchronise All Shopify Items Pricing Now?',True) then cu.Process_Items('',True);
+                    end;
+                }
+                action(MsgXXX)
+                {
+                    ApplicationArea = all;
+                    Caption = 'Synchronise Shopify Item Pricing Via File Import';
+                    Image = Change;
+                    Promoted = true;
+                    PromotedCategory = Category11;
+                    ToolTip = 'Updates Shopify Items Pricing via File Import';
+                    trigger OnAction()
+                     var
+                        cu:Codeunit "HL Import Export Routines";
+                    begin
+                        If Confirm('Synchronise Shopify Items Pricing Via File Import Now?',True) then cu.Refresh_Item_Prices_By_Import();
                     end;
                 }
                 action(Msg1A)
@@ -70,7 +100,7 @@ pageextension 80002 "HL Item List Ext" extends "Item List"
                             Temp.Reset;         
                             If Temp.Findset then
                             repeat
-                                Cu.Process_Items(Temp."No.");  
+                                Cu.Process_Items(Temp."No.",false);  
                             until temp.Next = 0;
                             rec.Reset;
                             CurrPage.update(false);

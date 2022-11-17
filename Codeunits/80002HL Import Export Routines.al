@@ -671,7 +671,7 @@ Codeunit 80002 "HL Import Export Routines"
                                                 Sp."Item No." := Item."No.";
                                                 Sp."Sell Price" := Price;
                                                 Sp."New RRP Price" := RRP;
-                                                Sp."Starting Date" := Today;
+                                                Evaluate(Sp."Starting Date",'01/01/2000');
                                                 Sp.Insert();
                                             end;
                                         end;
@@ -1071,8 +1071,11 @@ Codeunit 80002 "HL Import Export Routines"
                         else
                             OutStrm.WriteText('CHILD,');
                         OutStrm.WriteText(Item."Inventory Posting Group" + ',');
+                        Item.Get_Price(RRP);
+                        If (RRP > 0) and (RRP <> Item."Unit Price") then 
+                            Item.Validate("Unit Price",RRP);
                         OutStrm.WriteText(Format(Item."Unit Price", 0, '<Precision,2><Standard Format,1>') + ',');
-                        OutStrm.WriteText(Format(Item.Get_Price, 0, '<Precision,2><Standard Format,1>') + ',');
+                        OutStrm.WriteText(Format(Item.Get_Price(RRP), 0, '<Precision,2><Standard Format,1>') + ',');
                         OutStrm.WriteText(Item."Vendor No." + ',');
                         OutStrm.WriteText('PRIMARY,');
                         OutStrm.WriteText(Item."Vendor Item No." + ',');
@@ -1144,8 +1147,11 @@ Codeunit 80002 "HL Import Export Routines"
                                 else
                                     OutStrm.WriteText('CHILD,');
                                 OutStrm.WriteText(Item."Inventory Posting Group" + ',');
+                                Item.Get_Price(RRP);
+                                If (RRP > 0) and (RRP <> Item."Unit Price") then 
+                                    Item.Validate("Unit Price",RRP);
                                 OutStrm.WriteText(Format(Item."Unit Price", 0, '<Precision,2><Standard Format,1>') + ',');
-                                OutStrm.WriteText(Format(Item.Get_Price, 0, '<Precision,2><Standard Format,1>') + ',');
+                                OutStrm.WriteText(Format(Item.Get_Price(RRP), 0, '<Precision,2><Standard Format,1>') + ',');
                                 OutStrm.WriteText(ItemVen."Vendor No." + ',');
                                 OutStrm.WriteText('ALTERNATE,');
                                 OutStrm.WriteText(ItemVen."Vendor Item No." + ',');
@@ -2853,5 +2859,38 @@ end;
             else
                 Message('Action aborted by user');        
         end;
+    end;
+    Procedure Refresh_Item_Prices_By_Import()
+    var
+        Item:Record Item temporary;
+        Flds:list of [text];
+        FData:text;
+        Instrm:InStream;
+        FileName:Text;
+        CU:Codeunit "HL Shopify Routines";
+    begin
+        If Item.findset then Item.DeleteAll();
+        if File.UploadIntoStream('Item Pricing Shopify Import','','',FileName,Instrm) then
+        Begin
+            While Not Instrm.EOS  do
+            begin
+                Instrm.ReadText(FData);
+                If StrLen(FData) > 0 then
+                begin
+                    Flds := FData.Split(',');
+                    If Not Item.Get(Flds.Get(1)) then
+                    begin
+                        Item.Init();
+                        Item."No." := Flds.Get(1);
+                        Item.Insert(False);       
+                    end;    
+                end;
+            end;
+            Item.Reset;
+            If Item.Findset then
+            repeat
+                Cu.Process_Items(Item."No.",True);
+            Until Item.Next = 0;
+        end;            
     end;
 }

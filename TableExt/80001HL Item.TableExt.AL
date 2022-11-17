@@ -543,13 +543,12 @@ tableextension 80001 "HL Items Ext" extends Item
             until Rel.next = 0;    
         end;
     end;    
-    procedure Get_Price():Decimal
+    procedure Get_Price(var RRP:decimal):Decimal
     var
         Sp:Record "HL Shopfiy Pricing";
         val:Decimal;
-        RRP:decimal;
     begin
-        Val := 99999;
+        val := 99999;
         Clear(RRP);
         Sp.reset;
         Sp.Setrange("Item No.",rec."No.");
@@ -564,11 +563,7 @@ tableextension 80001 "HL Items Ext" extends Item
             end;    
         Until Sp.next = 0;
         If (RRP > 0) and (RRP <> rec."Unit Price") then 
-        begin
-            rec.Validate("Unit Price",RRP);
-            rec.Modify(False);
-            Commit;
-        end;
+            rec."Unit Price" := RRP;
         If val = 99999 then val := rec."Unit Price";
         exit(val);
     end;

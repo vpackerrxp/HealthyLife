@@ -20,7 +20,7 @@ tableextension 80009 "HL Purchase Line Ext" extends "Purchase Line"
                 end;
             end;    
         }
-      modify(Quantity)
+        modify(Quantity)
         {
             trigger OnAfterValidate()
             var

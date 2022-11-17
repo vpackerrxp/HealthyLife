@@ -333,7 +333,7 @@ page  80008 "HL Shopify Parent List"
                                 Rel[1].Setrange("Parent Item No.",Temp."No. 2");
                                 IF Rel[1].findset then
                                     Rel[1].Modifyall("Update Required",True,False);
-                                Cu.Process_Items(Temp."No. 2");
+                                Cu.Process_Items(Temp."No. 2",false);
                                 Rec.Delete(False);    
                             end;
                         until Temp.Next = 0

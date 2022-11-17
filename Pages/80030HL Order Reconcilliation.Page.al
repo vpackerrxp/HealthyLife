@@ -378,41 +378,21 @@ page 80030 "HL Order Reconciliation"
                     trigger OnAction()
                     var
                         Cu: Codeunit "HL Shopify Routines";
-                        Recon:Record "HL Order Reconciliations";
-                        OrdHdr:array[2] of Record "HL Shopify Order Header";
                         Cnt:Integer;
                     begin
                         If Confirm('Update Unprocessed Refunds Now?',True) then
-                        begin
-                            Clear(Cnt);
-                            Recon.reset;
-                            Recon.Setrange("Shopify Order Type",Recon."Shopify Order Type"::Refund);
-                            Recon.SetRange("Apply Status",Recon."Apply Status"::UnApplied);
-                            Recon.Setfilter("Shopify Order Date",'<=%1',CalcDate('-2W',Today));
-                            if Recon.findset then 
-                            repeat
-                                OrdHdr[1].reset;
-                                OrdHdr[1].Setrange("Shopify Order No.",ReCon."Shopify Order No");
-                                OrdHdr[1].Setrange("Order Type",OrdHdr[1]."Order Type"::CreditMemo);
-                                If Not OrdHdr[1].findset then
-                                begin
-                                    OrdHdr[2].reset;
-                                    OrdHdr[2].Setrange("Shopify Order No.",ReCon."Shopify Order No");
-                                    OrdHdr[2].Setrange("Order Type",OrdHdr[2]."Order Type"::Invoice);
-                                    If OrdHdr[2].findset then
-                                    begin
-                                        Clear(OrdHdr[2]."Refunds Checked");
-                                        OrdHdr[2].Modify(false);
-                                        Cnt+=1;
-                                        CU.Process_Refunds(OrdHdr[2]."Shopify Order No.");
-                                    end;    
-                                end;    
-                            until Recon.next = 0;
-                            If Cnt > 0 then Message('%1 Refunds have been updated',Cnt)
+                        Begin
+                            Cnt := CU.Process_Current_Refunds();
+                            If Cnt > 0 then
+                            begin
+                                Cu.Process_Orders(false,0);
+                                Message('%1 Refunds have been updated and processed',Cnt)
+                            end; 
                         end;
-                    end;
+                        CurrPage.update(false);
+                   end;
                 }
-            }
+             }
             Group(Entries) 
             {   
                 Caption = 'Entries';
@@ -475,7 +455,7 @@ page 80030 "HL Order Reconciliation"
                             end;         
                         end;            
                     end;
-                }    
+                }
             /*    action("PCE")
                 {
                     ApplicationArea = All;
@@ -524,7 +504,11 @@ page 80030 "HL Order Reconciliation"
                 }*/
            }
         }
+    
     }
+    
+
+
     trigger OnAfterGetRecord()
     begin
         Styler := 'strong';

@@ -520,8 +520,9 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                     //Shp:record "HL Shopify Order Header";
                     val:BigInteger;
                     CU:Codeunit Test;
+                  DocProfile:record "Document Sending Profile";
                 begin
-                    Item.Reset;
+                   Item.Reset;
                     Item.Setrange(Type,Item.Type::Inventory);
                     Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
                     if Item.findset then

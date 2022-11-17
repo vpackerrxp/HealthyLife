@@ -98,10 +98,10 @@ page 80036 "HL Check Shopify Items"
                                     Item.Get(rec."No.");
                                     Item."Shopify Update Flag" := True;
                                     Item.modify(false);
-                                    Cu.Process_Items(Item."No.");
+                                    Cu.Process_Items(Item."No.",false);
                                     Item."Shopify Update Flag" := True;
                                     Item.modify(false);
-                                    Cu.Process_Items(Item."No.");    
+                                    Cu.Process_Items(Item."No.",false);    
                                     Cu.Check_Product_ID(Rec,Cnt);
                                     if Cnt = Rel.Count then rec.Delete(false);
                                 end;
@@ -147,8 +147,8 @@ page 80036 "HL Check Shopify Items"
                                 i+=1;
                                 rel.modify(false);
                             until rel.next = 0;
-                            Cu.Process_Items(Rec."No.");
-                            Cu.Process_Items(Rec."No.");    
+                            Cu.Process_Items(Rec."No.",false);
+                            Cu.Process_Items(Rec."No.",false);    
                             Message(Cu.Check_Product_ID(Rec,i));
                         end;    
                     end;

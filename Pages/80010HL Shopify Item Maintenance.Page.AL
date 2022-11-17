@@ -155,7 +155,7 @@ page 80010 "HL Shopify Item Maintenance"
                             If Temp.Findset then
                             repeat
                                 Win.update(1,Temp."No.");
-                                Cu.Process_Items(Temp."No.");  
+                                Cu.Process_Items(Temp."No.",false);  
                             until temp.Next = 0
                             else
                                 Message('Nothing Found Marked For Addition');

@@ -23,10 +23,15 @@ codeunit 80000 "HL Shopify Routines"
                 begin
                     Log."Operation" := 'Synchronise Shopify Items';
                     ClearLastError();
-                    If Process_Items('') then
+                    If Process_Items('',False) then
                         Log.Status := Log.Status::Pass
                     else
+                    Begin
                         log."Error Message" := CopyStr(GetLastErrorText,1,250);
+                        Send_Email_Msg('Synchronise Shopify Items Error',log."Error Message",'mjanarthanam1@woolworths.com.au');
+                        Send_Email_Msg('Synchronise Shopify Items Error',log."Error Message",'ltang3@healthylife.com.au');
+                        Send_Email_Msg('Synchronise Shopify Items Error',log."Error Message",'vpacker@practiva.com.au');
+                    end
                 end;
                 2:
                 begin
@@ -35,8 +40,13 @@ codeunit 80000 "HL Shopify Routines"
                     if Get_Shopify_Orders(0,0) then
                         Log.Status := Log.Status::Pass
                     else
-                       log."Error Message" := CopyStr(GetLastErrorText,1,250);
-               end;
+                    Begin
+                        log."Error Message" := CopyStr(GetLastErrorText,1,250);
+                        Send_Email_Msg('Retrieve Shopify Orders Error',log."Error Message",'mjanarthanam1@woolworths.com.au');
+                        Send_Email_Msg('Retrieve Shopify Orders Error',log."Error Message",'ltang3@healthylife.com.au');
+                        Send_Email_Msg('Retrieve Shopify Orders Error',log."Error Message",'vpacker@practiva.com.au');
+                  end;
+                end;
                 3:
                 begin
                     Log."Operation" := 'Process Shopify Orders';
@@ -44,8 +54,13 @@ codeunit 80000 "HL Shopify Routines"
                     If Process_Orders(false,0) then 
                         Log.Status := Log.Status::Pass
                     else
+                    begin
                         log."Error Message" := CopyStr(GetLastErrorText,1,250);
-                end;
+                        Send_Email_Msg('Process Shopify Orders Error',log."Error Message",'mjanarthanam1@woolworths.com.au');
+                        Send_Email_Msg('Process Shopify Orders Error',log."Error Message",'ltang3@healthylife.com.au');
+                        Send_Email_Msg('Process Shopify Orders Error',log."Error Message",'vpacker@practiva.com.au');
+                    end;
+                end;    
             end;
             Log."Execution Time" := CurrentDateTime;
             log.Modify();
@@ -234,6 +249,10 @@ codeunit 80000 "HL Shopify Routines"
         Logs.Setrange(Status,Logs.Status::Success);
         Logs.Setfilter("End Date/Time",'<%1',CreateDateTime(Calcdate('-5D',Today),0T));
         If Logs.Findset then Logs.DeleteAll(false);
+        Logs.setrange("Object ID to Run",Codeunit::"HL WebService Routines");
+        If Logs.Findset then Logs.DeleteAll(false);
+        Logs.setrange("Object ID to Run",Codeunit::"HL Watchdog");
+        If Logs.Findset then Logs.DeleteAll(false);
     end;
     local procedure Update_Error_Log(Err:text)
     var
@@ -322,9 +341,11 @@ codeunit 80000 "HL Shopify Routines"
         Rel:record "HL Shopify Item Relations";
         Filt:text;
         wind:Dialog;
+        RRP:decimal;
+        Price:Decimal;
     Begin
         // See if email alerts required for a price change or not
-        if GuiAllowed then Wind.Open('Refreshing Product Sell Prices');
+        if GuiAllowed then Wind.Open('Refreshing Product Sell Prices #1#############');
         Check_For_Price_Change();
         Clear(Filt);
         if ItemNo <> '' then
@@ -344,7 +365,11 @@ codeunit 80000 "HL Shopify Routines"
             Item.Setfilter("No.",Filt.Remove(Filt.LastIndexOf('|'),1));
         If Item.Findset then
         repeat
-            Item.Validate("Current Price",Item.Get_Price());
+            If guiallowed then wind.Update(1,Item."No.");
+            Price := Item.Get_Price(RRP);
+            Item.Validate("Current Price",Price);
+            If (RRP > 0) And (RRP <> Item."Unit Price") then
+                Item."Unit Price" := RRP;
             Item.Validate("Current RRP",Item."Unit Price");
             Item.validate("Current PDisc",Item.Get_Shopify_Disc(0));
             Item.validate("Current GDisc",Item.Get_Shopify_Disc(1));
@@ -399,34 +424,32 @@ codeunit 80000 "HL Shopify Routines"
         until Item.next = 0;
         Win.Close;    
     end;    
-   local procedure Build_Product_Handle(Handle:text):Text
+    local procedure Build_Product_Handle(Handle:text):Text
     Var
-        HTemp:array[2] of Text;
+        HTemp:Text;
         Item:Record Item;
         i:Integer;
         Reqd:Boolean;
     Begin
-        HTemp[1] := Handle.ToLower().Replace(' ','-');
-        Htemp[1] := HTemp[1].Replace('+','-');
-        Htemp[1] := HTemp[1].Replace('&','-');
-        Htemp[1] := HTemp[1].Replace('#','-');
-        Htemp[1] := HTemp[1].Replace('%','-');
-        If HTemp[1].endswith('-') then
-            Htemp[1] := HTemp[1].Remove(Htemp[1].LastIndexOf('-',1));
-        Htemp[2] := HTemp[1];
+        HTemp := Handle.ToLower().Replace(' ','-');
+        Htemp := HTemp.Replace('+','-');
+        Htemp := HTemp.Replace('&','-');
+        Htemp := HTemp.Replace('#','-');
+        Htemp := HTemp.Replace('%','-');
+        If HTemp.endswith('-')  then
+            HTemp := CopyStr(Htemp,1,StrLen(HTemp) - 1); 
         Reqd := True;
         Clear(i);
         While Reqd do
         begin
             i+=1;
             Item.reset;
-            Item.Setrange("Shopify Product Handle",Htemp[1]);
+            Item.Setrange("Shopify Product Handle",Htemp);
             Reqd := Item.Findset;
-            If Reqd then HTemp[1] := HTemp[2] + '-' + Format(i);  
+            If Reqd then HTemp += '-' + Format(i);  
         end;
-        Exit(HTemp[1]);
-    end;        
-
+        Exit(HTemp);    
+    end;
     local procedure Build_Shopify_Parents(ItemFilt:Code[20])
     var
         Item:Record Item;
@@ -718,6 +741,7 @@ codeunit 80000 "HL Shopify Routines"
         Log:record "HL Shopify Update Log";
         ItemUnit:record "Item Unit of Measure";
         ItemNo:Code[20];
+        RRP:Decimal;
     begin
        If GuiAllowed then 
             Wind.open('Updating Shopify Item           #1#################\'
@@ -746,7 +770,9 @@ codeunit 80000 "HL Shopify Routines"
                 JsObj.Add('sku',Item[1]."No.");
                 If Item[1]."Shopify Selling Option 1" <> '' Then    
                     JsObj.Add('option1',Item[1]."Shopify Selling Option 1");
-                price := Item[1].Get_Price();
+                price := Item[1].Get_Price(RRP);
+                If (RRP > 0) and (RRP <> Item[1]."Unit Price") then 
+                    Item[1].Validate("Unit Price",RRP);
                 JsObj.Add('price',Format(price,0,'<Precision,2><Standard Format,1>'));
                 if Price < Item[1]."Unit Price" then
                     JsObj.Add('compare_at_price',Format(Item[1]."Unit Price",0,'<Precision,2><Standard Format,1>'))
@@ -788,7 +814,9 @@ codeunit 80000 "HL Shopify Routines"
                         Clear(Jsobj1);
                         JsObj.Add('sku',Item[2]."No.");
                         JsObj.Add('option1',Item[2]."Shopify Selling Option 1");
-                        price := Item[2].Get_Price();
+                        price := Item[2].Get_Price(RRP);
+                        If (RRP > 0) and (RRP <> Item[2]."Unit Price") then 
+                            Item[2].Validate("Unit Price",RRP);
                         JsObj.Add('price',format(price,0,'<Precision,2><Standard Format,1>'));
                         if (Price < Item[2]."Unit Price")  then
                             JsObj.Add('compare_at_price',format(Item[2]."Unit Price",0,'<Precision,2><Standard Format,1>'))
@@ -845,7 +873,7 @@ codeunit 80000 "HL Shopify Routines"
                         end        
                         else
                         begin
-                            Sleep(100);
+                            Sleep(200);
                             If Shopify_Data(Paction::PUT,
                                 ShopifyBase + 'variants/'+ Format(Item[2]."Shopify Product Variant ID") + '.json'
                                 ,Parms,Payload,Data) Then
@@ -988,13 +1016,14 @@ codeunit 80000 "HL Shopify Routines"
     end;
    
     [TryFunction]
-    procedure Process_Items(ItemFilt:Code[20])
+    procedure Process_Items(ItemFilt:Code[20];Bypass:Boolean)
     var
         Log:record "HL Shopify Update Log";
         Setup:record "Sales & Receivables Setup";
     begin
         Refresh_Product_Pricing(ItemFilt);
-        Check_Shopify_Child_Structure(ItemFilt);
+        If Not Bypass then
+            Check_Shopify_Child_Structure(ItemFilt);
         Build_Shopify_Parents(ItemFilt);
         Build_Shopify_Children(ItemFilt);    
         Unpublish_Shopify_Items(ItemFilt);
@@ -1065,6 +1094,7 @@ codeunit 80000 "HL Shopify Routines"
         Item2:record Item;
         ItemUnit:record "Item Unit of Measure";
         i:integer;
+        RRP:decimal;
     begin
         Clear(flg);
         If Item."CRM Shopify Product ID" > 0 then
@@ -1134,7 +1164,9 @@ codeunit 80000 "HL Shopify Routines"
                         JsObj.Add('option1',Item."Shopify Selling Option 1");
                         If Item."Shopify Selling Option 2" <> '' Then    
                             JsObj.Add('option2',Item."Shopify Selling Option 2");
-                        price := Item.Get_Price();
+                        price := Item.Get_Price(RRP);
+                        If (RRP > 0) and (RRP <> Item."Unit Price") then 
+                            Item.Validate("Unit Price",RRP);
                         JsObj.Add('price',format(price,0,'<Precision,2><Standard Format,1>'));
                         if (Price < Item."Unit Price")  then
                             JsObj.Add('compare_at_price',format(Item."Unit Price",0,'<Precision,2><Standard Format,1>'))
@@ -1197,6 +1229,7 @@ codeunit 80000 "HL Shopify Routines"
         ItemUnit:record "Item Unit of Measure";
         i:Integer;
         Pos:Integer;
+        RRP:Decimal;
     begin
         Clear(Flg);
         If Mrel."Move To Parent" <> '' then
@@ -1266,7 +1299,9 @@ codeunit 80000 "HL Shopify Routines"
                         JsObj.Add('option1',Item[2]."Shopify Selling Option 1");
                         If Item[2]."Shopify Selling Option 2" <> '' Then    
                             JsObj.Add('option2',Item[2]."Shopify Selling Option 2");
-                        price := Item[2].Get_Price();
+                        price := Item[2].Get_Price(RRP);
+                        If (RRP > 0) and (RRP <> Item[2]."Unit Price") then 
+                            Item[2].Validate("Unit Price",RRP);
                         JsObj.Add('price',format(price,0,'<Precision,2><Standard Format,1>'));
                         if (Price < Item[2]."Unit Price")  then
                             JsObj.Add('compare_at_price',format(Item[2]."Unit Price",0,'<Precision,2><Standard Format,1>'))
@@ -1655,7 +1690,12 @@ codeunit 80000 "HL Shopify Routines"
                             Ordline[1]."Order Qty" := Ordline[1]."Bundle Order Qty" * Ordline[1]."BOM Qty";
                             Ordline[1]."Unit Price" := Ordline[1]."Bundle Unit Price"/Ordline[1]."BOM Qty";
                             Ordline[1]."Unit Price" := (Ordline[1]."Unit Price" * Bom."Bundle Price Value %")/100;
-                            OrdLine[1]."Location Code" := 'QC';
+                            If OrdLine[1]."Location Code" = '' then
+                            begin
+                                OrdLine[1]."Location Code" := 'QC';
+                                If OrdHdr."Order Type" = OrdHdr."Order Type"::Cancelled then
+                                    OrdLine[1]."Location Code" := 'NSW';
+                            end;        
                             OrdLine[1]."Unit Of Measure" := Bom."Unit of Measure Code";
                             OrdLine[1]."NPF Shipment Qty" := OrdLine[1]."Order Qty";
                             OrdLine[1]."Discount Amount" :=  (DisTot * Bom."Bundle Price Value %")/100;
@@ -1682,7 +1722,12 @@ codeunit 80000 "HL Shopify Routines"
                 end
                 else
                 begin
-                    OrdLine[1]."Location Code" := 'QC';
+                    If OrdLine[1]."Location Code" = '' then
+                    begin
+                        OrdLine[1]."Location Code" := 'QC';
+                        If OrdHdr."Order Type" = OrdHdr."Order Type"::Cancelled then
+                            OrdLine[1]."Location Code" := 'NSW';
+                    end;        
                     OrdLine[1]."Unit Of Measure" := Item."Base Unit of Measure";
                     OrdLine[1]."NPF Shipment Qty" := OrdLine[1]."Order Qty";
                 end; 
@@ -1905,7 +1950,7 @@ codeunit 80000 "HL Shopify Routines"
                     excp.Modify();
                 end;
             end;
-            // now whatever is left we assign to the QC location
+            // now whatever is left we assign to the NSW location
             OrdLine[1].Reset;
             Ordline[1].SetRange("ShopifyID",OrdHdr.ID);
             Ordline[1].Setfilter("Item No.",'<>%1','');
@@ -1914,7 +1959,7 @@ codeunit 80000 "HL Shopify Routines"
             If OrdLine[1].Findset then
             repeat
                 OrdLine[1]."NPF Shipment Qty" := OrdLine[1]."Order Qty";
-                OrdLine[1]."Location Code" := 'QC';
+                OrdLine[1]."Location Code" := 'NSW';
                 If Item.Get(Ordline[1]."Item No.") then
                     Ordline[1]."Unit Of Measure" := Item."Base Unit of Measure";    
                 OrdLine[1].Modify(False);
@@ -2634,12 +2679,46 @@ codeunit 80000 "HL Shopify Routines"
             end;
         until cnt <=0; 
         Commit;
+        Process_Current_Refunds();
         //do every 7 days 
         If Date2DWY(today,1) = 6 then Process_Refunds(0);
         If Date2DWY(today,1) = 7 then Check_For_Extra_Refunds(0);
         if GuiAllowed then win.Close;
         exit(true);
     end;
+    procedure Process_Current_Refunds():Integer
+    var
+        Recon:record "HL Order Reconciliations";
+        OrdHdr:record "HL Shopify Order Header";
+        Cnt:integer;
+    Begin
+        Clear(Cnt);
+        Recon.Reset;
+        Recon.Setrange("Apply Status",Recon."Apply Status"::UnApplied,Recon."Apply Status"::CashApplied);
+        Recon.Setrange("Shopify Order Type",Recon."Shopify Order Type"::Refund);
+        Recon.Setrange("Extra Refund Count",0);
+        Recon.Setfilter("Shopify Order Date",'>=%1',Calcdate('-3W',Today));
+        If Recon.Findset then
+        repeat
+            OrdHdr.reset;
+            OrdHdr.Setrange("Shopify Order ID",Recon."Shopify Order ID");
+            OrdHdr.Setrange("Order Type",OrdHdr."Order Type"::CreditMemo);
+            If Not OrdHdr.findset then
+            begin
+                OrdHdr.Setrange("Order Type",OrdHdr."Order Type"::Invoice);
+                OrdHdr.Setrange("Order Status",OrdHdr."Order Status"::Closed);
+                If OrdHdr.FindSet() then
+                begin
+                    Clear(OrdHdr."Refunds Checked");
+                    OrdHdr.Modify(False);
+                    Commit;     
+                    Process_Refunds(Recon."Shopify Order No");
+                    Cnt+=1;
+                end;    
+            end;        
+        until Recon.next = 0;
+        exit(cnt);    
+    End;
     procedure Process_Refunds(RefundID:BigInteger)
     var
         OrdHdr:array[2] of record "HL Shopify Order Header";
@@ -3049,9 +3128,10 @@ codeunit 80000 "HL Shopify Routines"
         OrdHdr[1].Setrange("Order Status",OrdHdr[1]."Order Status"::Closed);
         OrdHdr[1].SetFilter("BC Reference No.",'<>%1','');
         OrdHdr[1].Setrange("Order Type",OrdHdr[1]."Order Type"::Invoice);
-        OrdHdr[1].SetFilter("Shopify Order Date",'>=%1',CalcDate('-' + Format(Setup."Ext Refund Order Lookback Per") + 'M',Today));
         If RefundID <> 0 then
-            OrdHdr[1].SetRange("Shopify Order No.",RefundID);
+            OrdHdr[1].SetRange("Shopify Order No.",RefundID)
+        else    
+            OrdHdr[1].SetFilter("Shopify Order Date",'>=%1',CalcDate('-' + Format(Setup."Ext Refund Order Lookback Per") + 'M',Today));
         OrdHdr[1].Setrange("Refunds Checked",True);
         If OrdHdr[1].Findset then
         repeat
@@ -4346,6 +4426,9 @@ codeunit 80000 "HL Shopify Routines"
             PurchHdrloc.Setrange("No.",PurchHdr."No.");
             PurchHdrloc.findset;
             PurchHdrloc.SendRecords();
+            Clear(Ven."Document Sending Profile");
+            Ven.Modify(False);
+            Commit;
         end    
         else
             Error('Operation Email %1 is invalid email Address',Ven."Operations E-Mail");

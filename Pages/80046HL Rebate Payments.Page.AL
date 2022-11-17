@@ -127,13 +127,13 @@ page 80046 "HL Rebate Payments"
                     Style = Favorable;
                     StyleExpr = Rec."Sales Rebate Total" > 0;
                 }
-                Field("Supply Rebate Claim";rec."Prices Including VAT")
+                Field("Supply Rebate Claim";rec."Foreign Vend")
                 {
                     Caption = 'Sales Rebate Claim';
                     ApplicationArea = All;
                    trigger OnValidate()
                     begin
-                        If rec."Sales Rebate Total" = 0 then Clear(rec."Prices Including VAT");
+                        If rec."Sales Rebate Total" = 0 then Clear(rec."Foreign Vend");
                     end;
                 }
                 Field("Rebate Total";rec."Budgeted Amount")
@@ -237,7 +237,7 @@ page 80046 "HL Rebate Payments"
                 begin
                     Case i of 
                         1: Flg := (rec."Partnership Rebate Total" > 0) AND rec."Tax Liable";
-                        2: Flg := (rec."Sales Rebate Total" > 0) AND rec."Prices Including VAT" ;
+                        2: Flg := (rec."Sales Rebate Total" > 0) AND rec."Foreign Vend" ;
                         3: Flg := (rec."Marketing Rebate Total" > 0) AND rec."Block Payment Tolerance"
                     end;
                     if flg then
@@ -432,7 +432,7 @@ page 80046 "HL Rebate Payments"
                     Clear(rec."Sales Rebate Total");
                     Clear(rec."Budgeted Amount");
                     Clear(rec."Tax Liable");
-                    Clear(rec."Prices Including VAT");
+                    Clear(rec."Foreign Vend");
                     clear(rec."Block Payment Tolerance");
                     rec."Name 2" := '*';
                     reb.reset;

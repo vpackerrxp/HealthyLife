@@ -241,6 +241,8 @@ codeunit 80000 "HL Shopify Routines"
     local procedure House_Keeping()
     var
         Logs:record "Job Queue Log Entry";
+        Log:record "HL Execution Log";
+
     begin
         Logs.Reset;
         Logs.Setrange("Object Type to Run",Logs."Object Type to Run"::Codeunit);
@@ -252,6 +254,10 @@ codeunit 80000 "HL Shopify Routines"
         If Logs.Findset then Logs.DeleteAll(false);
         Logs.setrange("Object ID to Run",Codeunit::"HL Watchdog");
         If Logs.Findset then Logs.DeleteAll(false);
+        Log.reset;
+        log.Setrange(Operation,'');
+        If log.FindSet() then
+            log.DeleteAll(false);
     end;
     local procedure Update_Error_Log(Err:text)
     var
@@ -531,7 +537,7 @@ codeunit 80000 "HL Shopify Routines"
                     Clear(Jsobj1);
                     JsObj1.Add('product',JsObj);
                     JsObj1.WriteTo(PayLoad);
-                    Sleep(100);
+                    Sleep(300);
                     If Shopify_Data(Paction::POST,ShopifyBase + 'products.json',Parms,Payload,Data) then
                     Begin
                         Data.Get('product',JsToken[1]);
@@ -792,7 +798,7 @@ codeunit 80000 "HL Shopify Routines"
                 end;     
                 jsObj1.Add('variant',JsObj);
                 JsObj1.WriteTo(PayLoad);
-                Sleep(100);
+                Sleep(300);
                 If Shopify_Data(Paction::PUT,
                          ShopifyBase + 'variants/'+ Format(Item[1]."Shopify Product Variant ID") +'.json'
                          ,Parms,Payload,Data) then
@@ -854,7 +860,7 @@ codeunit 80000 "HL Shopify Routines"
                         JsObj1.WriteTo(PayLoad);
                         If (Item[2]."Shopify Product Variant ID" = 0) then    
                         begin
-                            Sleep(100);
+                            Sleep(300);
                             If Shopify_Data(Paction::POST,
                                 ShopifyBase + 'products/'+ Format(Item[1]."Shopify Product ID") +'/variants.json'
                                 ,Parms,Payload,Data) then
@@ -871,13 +877,15 @@ codeunit 80000 "HL Shopify Routines"
                                 Item[2].validate("CRM Shopify Product ID",Item[1]."CRM Shopify Product ID");
                                 Clear(Item[2]."Key Info Changed Flag");
                                 item[2].modify(false);
+                                Clear(Rel."Update Required");
+                                Rel.Modify(False);
                             end
                             else
                                 Update_Error_Log(StrSubstNo('Failed to create Child Item %1 with Parent Item %2 using Product ID %3',Item[2]."No.",Item[1]."No.",Item[1]."Shopify Product ID"));
                         end        
                         else
                         begin
-                            Sleep(100);
+                            Sleep(300);
                             If Shopify_Data(Paction::PUT,
                                 ShopifyBase + 'variants/'+ Format(Item[2]."Shopify Product Variant ID") + '.json'
                                 ,Parms,Payload,Data) Then
@@ -887,12 +895,14 @@ codeunit 80000 "HL Shopify Routines"
                                 Item[2].Validate("CRM Shopify Product ID",Item[1]."CRM Shopify Product ID");
                                 Item[2].validate("Shopify Product ID",0);
                                 item[2].modify(false);
+                                Clear(Rel."Update Required");
+                                Rel.Modify(False);
                             end
                             else
                                 Update_Error_Log(StrSubstNo('Failed to update Child Item %1 with Parent Item %2 using Product ID %3,Variant ID %4',Item[2]."No."
                                                                 ,Item[1]."No.",Item[1]."Shopify Product ID",Item[2]."Shopify Product Variant ID"));
                                 
-                        end;    
+                        end;
                     until Rel.next = 0;
                 end;    
             end;
@@ -930,7 +940,7 @@ codeunit 80000 "HL Shopify Routines"
             JsObj.Add('published',False);
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
-            Sleep(100);
+            Sleep(300);
             if Not Shopify_Data(Paction::PUT,
                        ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
@@ -971,7 +981,7 @@ codeunit 80000 "HL Shopify Routines"
             JsObj.Add('published',PubCtrl);
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
-            Sleep(100);
+            Sleep(300);
             if Not Shopify_Data(Paction::PUT,
                        ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
@@ -1012,7 +1022,7 @@ codeunit 80000 "HL Shopify Routines"
             JsObj.Add('title',Item."Shopify Title");
             jsObj1.Add('product',JsObj);
             JsObj1.WriteTo(PayLoad);
-            Sleep(100);
+            Sleep(300);
             If Shopify_Data(Paction::PUT,
                        ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
@@ -1195,6 +1205,7 @@ codeunit 80000 "HL Shopify Routines"
                         jsObj1.Add('variant',JsObj);
                         Clear(PayLoad);
                         JsObj1.WriteTo(PayLoad);
+                        sleep(300);
                         If Shopify_Data(Paction::POST,
                                 ShopifyBase + 'products/'+ Format(Item."CRM Shopify Product ID") +'/variants.json'
                                 ,Parms,Payload,Data) then
@@ -1330,6 +1341,7 @@ codeunit 80000 "HL Shopify Routines"
                         jsObj1.Add('variant',JsObj);
                         Clear(PayLoad);
                         JsObj1.WriteTo(PayLoad);
+                        Sleep(300);
                         Flg := Shopify_Data(Paction::POST,
                                     ShopifyBase + 'products/'+ Format(Item[1]."Shopify Product ID") +'/variants.json'
                                     ,Parms,Payload,Data);
@@ -1361,6 +1373,7 @@ codeunit 80000 "HL Shopify Routines"
                         begin 
                             // here if something went wrong we reasign back to original parent
                             Item[1].Get(MRel."Parent Item No.");
+                            sleep(300);
                             If Shopify_Data(Paction::POST,
                                     ShopifyBase + 'products/'+ Format(Item[1]."Shopify Product ID") +'/variants.json'
                                     ,Parms,Payload,Data) then

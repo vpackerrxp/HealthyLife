@@ -15,7 +15,7 @@ tableextension 80001 "HL Items Ext" extends Item
             trigger OnAfterValidate()
             begin
                 If (Xrec."Item Category Code" <> Rec."Item Category Code") Then 
-                rec."Shopify Transfer Flag" := true;
+                    rec."Shopify Transfer Flag" := true;
             end; 
         }
         modify(Description)
@@ -516,7 +516,7 @@ tableextension 80001 "HL Items Ext" extends Item
             If Not Item."Shopify Update Flag" then
             begin
                 Item."Shopify Update Flag" := True;
-                Item.MOdify(false);
+                Item.Modify(false);
             end;          
             Clear(rec."Shopify Update Flag");
         end;

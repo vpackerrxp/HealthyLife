@@ -6,6 +6,8 @@ page 80002 "HL Part Classifications"
     InsertAllowed = true;
     ModifyAllowed = True;
     DeleteAllowed = true;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
         
     layout
     {

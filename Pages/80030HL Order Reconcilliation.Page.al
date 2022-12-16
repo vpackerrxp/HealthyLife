@@ -5,6 +5,8 @@ page 80030 "HL Order Reconciliation"
     SourceTable = "HL Order Reconciliations";
     InsertAllowed = false;
     DeleteAllowed = true;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(content)
@@ -193,6 +195,32 @@ page 80030 "HL Order Reconciliation"
                 {
                     ApplicationArea = All;
                     Style = Strong;
+                    trigger OnDrillDown()
+                    var
+                        Cu:Codeunit "HL Shopify Routines"; 
+                        Ordhdr:record "HL Shopify Order Header";
+                    begin
+                        If (Rec."Shopify Order Type" = Rec."Shopify Order Type"::Refund) And 
+                            (Get_BC_Document() = '') AND (Rec."Extra Refund Count" = 0) then
+                            If Confirm('Check and Process Refund Document Now?',True) then
+                            begin
+                                Ordhdr.Reset;
+                                Ordhdr.Setrange("Order Status",Ordhdr."Order Status"::Closed);
+                                Ordhdr.Setrange("Order Type",Ordhdr."Order Type"::Invoice);
+                                Ordhdr.Setrange("Shopify Order ID",Rec."Shopify Order ID");
+                                If Ordhdr.findset then
+                                begin
+                                    Clear(Ordhdr."Refunds Checked");
+                                    Ordhdr.Modify(false);     
+                                    Cu.Process_Refunds(Rec."Shopify Order No");
+                                    Ordhdr.Setrange("Order Status",Ordhdr."Order Status"::Open);
+                                    Ordhdr.Setrange("Order Type",Ordhdr."Order Type"::CreditMemo);
+                                    If Ordhdr.findset then
+                                        Cu.Process_Orders(false,Ordhdr.ID);
+                                    CurrPage.update(false);
+                                end;
+                            end;   
+                    end;
                 }
                 field("Shopify Order No"; Rec."Shopify Order No")
                 {
@@ -382,7 +410,7 @@ page 80030 "HL Order Reconciliation"
                     begin
                         If Confirm('Update Unprocessed Refunds Now?',True) then
                         Begin
-                            Cnt := CU.Process_Current_Refunds();
+                            Cnt := CU.Process_Current_Refunds(True);
                             If Cnt > 0 then
                             begin
                                 Cu.Process_Orders(false,0);
@@ -507,8 +535,6 @@ page 80030 "HL Order Reconciliation"
     
     }
     
-
-
     trigger OnAfterGetRecord()
     begin
         Styler := 'strong';

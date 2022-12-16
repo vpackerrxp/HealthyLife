@@ -7,6 +7,8 @@ page 80023 "HL Shopify Update Log"
     SourceTable = "HL Shopify Update Log";
     InsertAllowed = false;
     ModifyAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
    
     layout
     {

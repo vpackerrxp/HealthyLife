@@ -5,6 +5,8 @@ page 80000 "HL Shopify Item Relations"
     UsageCategory = Lists;
     SourceTable = "HL Shopify Item Relations";
     Caption = 'Shopify Parent/Child';
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(Content)

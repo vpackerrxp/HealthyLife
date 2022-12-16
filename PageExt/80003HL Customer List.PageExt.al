@@ -96,7 +96,7 @@ pageextension 80003 "HL Customer List Ext" extends "Customer List"
                 PromotedCategory = Category10;
                 RunObject = Page "HL Order Reconciliation";
             }
-            action("HLF1")
+           /* action("HLF1")
             {
                 ApplicationArea = All;
                 Caption = 'OLd Shopify Daily Reconciliation';
@@ -104,7 +104,7 @@ pageextension 80003 "HL Customer List Ext" extends "Customer List"
                 Promoted = true;
                 PromotedCategory = Category10;
                 RunObject = Page "HL Shopify Order Recon";;
-            }
+            }*/
              Action(Msg8)
             {
                 ApplicationArea = All;

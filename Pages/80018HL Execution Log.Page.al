@@ -9,6 +9,8 @@ page 80018 "HL Execution Log"
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

@@ -7,6 +7,8 @@ page  80007 "HL Shopify Order Lines"
     Caption = 'Shopify Order Lines';
     InsertAllowed = false;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
    
     layout
     {

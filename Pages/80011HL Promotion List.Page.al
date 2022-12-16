@@ -5,7 +5,9 @@ page 80011 "HL Promotion List"
     SourceTable = "HL Promotions";
     SourceTableView =  where("Promotion Period"=Const(1));
     Editable = False;
-     layout
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
+    layout
     {
         area(content)
         {

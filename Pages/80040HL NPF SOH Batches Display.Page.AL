@@ -7,6 +7,8 @@ page 80040 "HL NPF SOH Batches Display"
     Caption = 'Batches';
     Editable = false;
     DeleteAllowed = False;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
       
     layout
     {

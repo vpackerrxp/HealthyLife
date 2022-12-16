@@ -3,6 +3,8 @@ page 80026 "HL Purchase Email Confirmation"
     Caption = 'Purchase Email Confirmation';
     PageType = Worksheet;
     SourceTable = "Purchase Header";
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(content)

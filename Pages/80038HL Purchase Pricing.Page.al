@@ -4,6 +4,8 @@ page 80038 "HL Purchase Pricing"
     ApplicationArea = All;
     UsageCategory = Lists;
     SourceTable = "HL Purchase Pricing";
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

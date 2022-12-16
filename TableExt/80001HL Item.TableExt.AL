@@ -718,4 +718,5 @@ tableextension 80001 "HL Items Ext" extends Item
             If Rel.findset then Rel.DeleteAll(True);
         end;            
     end;
+ 
 }

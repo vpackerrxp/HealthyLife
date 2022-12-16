@@ -554,6 +554,8 @@ codeunit 80005 "HL Reconcillations"
             begin
                 Clear(Doc);
                 OrdHdr.Reset;
+                OrdHdr.Setrange("Order Status",OrdHdr."Order Status"::Closed);
+                OrdHdr.Setfilter("BC Reference No.",'<>%1','');
                 If RecCon."Refund Shopify ID" <> 0 then
                     OrdHdr.Setrange("Shopify Order ID",RecCon."Refund Shopify ID")
                 else    
@@ -808,6 +810,8 @@ codeunit 80005 "HL Reconcillations"
             begin
                 Clear(Doc);
                 OrdHdr.Reset;
+                OrdHdr.Setrange("Order Status",OrdHdr."Order Status"::Closed);
+                OrdHdr.Setfilter("BC Reference No.",'<>%1','');
                 If RecCon."Refund Shopify ID" <> 0 then
                     OrdHdr.Setrange("Shopify Order ID",RecCon."Refund Shopify ID")
                 else    
@@ -971,6 +975,7 @@ codeunit 80005 "HL Reconcillations"
             else    
                 OrdHdr.Setrange("Shopify Order ID",Recon."Shopify Order ID");
             OrdHdr.Setrange("Order Type",Recon."Shopify Order Type");
+            OrdHdr.Setfilter("BC Reference No.",'<>%1','');
             if Doc <> '' then
                 OrdHdr.Setrange(OrdHdr."BC Reference No.",Doc);
             If OrdHdr.FindSet() then

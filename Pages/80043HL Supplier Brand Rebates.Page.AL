@@ -8,6 +8,8 @@ page 80043 "HL Supplier Brand Rebates"
     InsertAllowed = false;
     //DeleteAllowed = false;
     Editable = true;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

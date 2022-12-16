@@ -10,6 +10,8 @@ page  80008 "HL Shopify Parent List"
     DeleteAllowed = false;
     ModifyAllowed = false;
     Caption = 'Shopify Parent Management';
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
       
     layout
     {

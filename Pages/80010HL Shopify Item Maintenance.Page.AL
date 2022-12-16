@@ -8,6 +8,9 @@ page 80010 "HL Shopify Item Maintenance"
     DeleteAllowed = false;
     ModifyAllowed = false;
     Caption = 'Shopify Item Maintenance';
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
+
     layout
     {
         area(Content)

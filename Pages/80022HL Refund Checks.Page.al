@@ -2,6 +2,8 @@ page 80022 "HL Refund Checks"
 {
     Caption = 'Refund Checks';
     PageType = Card;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(content)

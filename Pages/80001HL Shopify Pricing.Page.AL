@@ -7,6 +7,8 @@ page 80001 "HL Shopify Pricing"
     RefreshOnActivate = True;
     DelayedInsert = true;
     Caption = 'Shopify Price Management';        
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(Content)

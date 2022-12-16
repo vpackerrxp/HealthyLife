@@ -6,6 +6,8 @@ page  80035 "HL Sales Batch No"
     SourceTable = "HL Sales Batch No";
     Caption = 'Sales Batch No';
     Editable = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

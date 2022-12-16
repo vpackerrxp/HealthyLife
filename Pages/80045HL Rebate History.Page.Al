@@ -9,6 +9,8 @@ page 80045 "HL Rebate History"
     ModifyAllowed = false;
     DeleteAllowed = false;
     Caption = 'Rebate History';
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(Content)

@@ -9,6 +9,8 @@ page 80036 "HL Check Shopify Items"
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
 
     layout
     {

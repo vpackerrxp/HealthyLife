@@ -209,10 +209,12 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                                 begin
                                     CU.Get_SOH(0,'*',XmlDoc);
                                     CurrNode := XMlDoc.AsXmlNode();
-                                    If CurrNode.SelectSingleNode('ProductList',CurrNode) Then    
+                                    If CurrNode.SelectSingleNode('Request',CurrNode) Then    
                                         Message('Connect Successfull')
                                     else
-                                        Message('Connect Unsuccessfull');    
+                                        Message('Connect Unsuccessfull');
+                                    if Confirm('Show Returned XML Message',True) then  
+                                        Message('%1',CurrNode.AsXmlElement().InnerText);    
                                 end;    
                             end
                             else
@@ -227,6 +229,10 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                         ApplicationArea = All;
                     }
                     field("Web Service API URL";rec."Web Service API URL")
+                    {
+                        ApplicationArea = All;
+                    }
+                    field("Web Service Audience URL";rec."Web Service Audience URL")
                     {
                         ApplicationArea = All;
                     }
@@ -259,8 +265,9 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                             rec.Get;
                             Flg := (rec."Web Service Oauth2 URL" <> '')  
                                 ANd (rec."Web Service API URL" <> '')
+                                AND (rec."Web Service Audience URL" <> '')
                                 AND (rec."Web Service ClientID" <> '') 
-                                AND (rec."Web Service Client Secret" <> '');
+                               AND (rec."Web Service Client Secret" <> '');
                             If Flg then
                             begin        
                                 if Confirm('Test WebService Connection using supplied parameters now?',true) then
@@ -342,11 +349,16 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                 }    
                 Group(Debug)
                 {
-                    Field("Debug Start Date";rec."Debug Start Date")
+                 /*   Field("Debug Start Date";rec."Debug Start Date")
                     {
                         ApplicationArea = All;
                     }
                     Field("Debug End Date";rec."Debug End Date")
+                    {
+                        ApplicationArea = All;
+                    }
+                 */   
+                    Field("By Pass Child Structure Check";rec."By Pass Child Structure Check")
                     {
                         ApplicationArea = All;
                     }
@@ -522,15 +534,14 @@ pageextension 80000 "HL Sales & Rec Setup Ext" extends "Sales & Receivables Setu
                     CU:Codeunit Test;
                   DocProfile:record "Document Sending Profile";
                 begin
+                    CU.Fix_market_Place();
+                    exit; 
                    Item.Reset;
                     Item.Setrange(Type,Item.Type::Inventory);
                     Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
                     if Item.findset then
                         Item.ModifyAll("Web Service Update Flag",True,False);
                     exit;    
-
-
-
                     CU.Testrun();
                     Exit;
                     //Cu.Testrun();

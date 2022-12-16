@@ -9,6 +9,8 @@ page 80021 "HL Inventory Maintenance"
     InsertAllowed = false;
     //ModifyAllowed = false;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
      
     layout
     {

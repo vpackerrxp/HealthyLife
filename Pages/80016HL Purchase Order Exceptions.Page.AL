@@ -8,7 +8,9 @@ page 80016 "HL Purch. Order Exceptions"
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = True;
-    
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
+   
     layout
     {
         area(Content)

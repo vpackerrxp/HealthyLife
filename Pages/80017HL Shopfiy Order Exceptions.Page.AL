@@ -9,6 +9,8 @@ page 80017 "HL Shopify Order Exceptions"
     ModifyAllowed = false;
     DeleteAllowed = false;
     Editable = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

@@ -7,6 +7,8 @@ page 80003 "HL Promotions"
     UsageCategory = Tasks;
     InsertAllowed = False;
     //DeleteAllowed = False;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
 
     layout
     {

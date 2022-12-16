@@ -10,7 +10,8 @@ codeunit 80000 "HL Shopify Routines"
         Log:record "HL Execution Log";
         i:Integer;
      begin
-         For i:= 1 to 3 do
+        Log.LockTable(True);
+        For i:= 1 to 3 do
         begin    
             Log.init;
             Clear(Log.ID);
@@ -18,11 +19,11 @@ codeunit 80000 "HL Shopify Routines"
             Commit;
             Log."Execution Start Time" := CurrentDateTime;
             Log."Execution Type" := Log."Execution Type"::Process;
+            ClearLastError();
             case i of
                 1:
                 begin
                     Log."Operation" := 'Synchronise Shopify Items';
-                    ClearLastError();
                     If Process_Items('',False) then
                         Log.Status := Log.Status::Pass
                     else
@@ -36,7 +37,6 @@ codeunit 80000 "HL Shopify Routines"
                 2:
                 begin
                     Log."Operation" := 'Retrieve Shopify Orders';
-                    ClearLastError();
                     if Get_Shopify_Orders(0,0) then
                         Log.Status := Log.Status::Pass
                     else
@@ -50,7 +50,6 @@ codeunit 80000 "HL Shopify Routines"
                 3:
                 begin
                     Log."Operation" := 'Process Shopify Orders';
-                    ClearLastError();
                     If Process_Orders(false,0) then 
                         Log.Status := Log.Status::Pass
                     else
@@ -220,7 +219,7 @@ codeunit 80000 "HL Shopify Routines"
         Clear(JsObj);
         JsObj.Add('client_id',Setup."Web Service ClientID");
         JsObj.Add('client_secret',Setup."Web Service Client Secret");
-        JsObj.Add('audience','https://dev-integration.healthylife.dev/api');
+        JsObj.Add('audience',Setup."Web Service Audience URL");
         JsObj.add('grant_type','client_credentials');   
         JsObj.WriteTo(PayLoad);
         Flg := CallRESTWebService(ws,Parms,PayLoad);
@@ -359,6 +358,7 @@ codeunit 80000 "HL Shopify Routines"
             else
                 exit;    
         end;
+        Item.LockTable(true);
         Item.Reset;
         Item.Setrange(Type,Item.Type::Inventory);
         If Filt <> '' then
@@ -468,6 +468,7 @@ codeunit 80000 "HL Shopify Routines"
         Log:record "HL Shopify Update Log";
         Handle:text;
     begin
+        Item.LockTable(true);
         Item.reset;
         If Itemfilt <> '' then
             Item.Setrange("No.",ItemFilt);
@@ -642,6 +643,7 @@ codeunit 80000 "HL Shopify Routines"
     begin
         If GuiAllowed then Win.Open('Checking Parent/Child Structure #1############'
                                    +'Logging Error Item #2#############');
+        Item[1].LockTable(true);
         Item[1].reset;
         If Itemfilt <> '' then
             Item[1].Setrange("No.",ItemFilt);
@@ -659,65 +661,66 @@ codeunit 80000 "HL Shopify Routines"
             Rel.Setrange("Parent Item No.",Item[1]."No.");
             Rel.Setrange("Un Publish Child",False);
             If Rel.Findset then
-            begin
-                // now get the linked child structure
-                Clear(ErrFlg);
-                Clear(i);   
-                ProdID := Get_Parent_Variant_Structure(Item[1],SkuLst,SkuIDlst);
-                If ProdID = 0 then 
-                    ErrFlg := true
-                else    
-                    repeat
-                        i+=1;
-                        If Skulst.Get(i,ChildItem) then
-                        begin
-                            if Rel."Child Item No." <> ChildItem then
-                                ErrFlg := True;
-                        End 
-                        else
-                            ErrFlg := true;
-                    until (Rel.next = 0) or Errflg;           
-                If ErrFlg then 
+                if Rel.Count > 1 then
                 begin
-                   If GuiAllowed then Win.Update(2,Item[1]."No.");
-                   If ProdID = 0 then
-                        Update_Error_Log(StrSubStno('Parent %1 Shopify Product ID %2 and or Handle Cannot be found in Shopify'
-                                                             ,Item[1]."No.",Item[1]."Shopify Product ID"))
-                    else
-                        Update_Error_log(Strsubstno('Parent %1 has missing variants and or variant positions are not correct',Item[1]."No."));
-                end
-                Else
-                begin
+                    // now get the linked child structure
+                    Clear(ErrFlg);
                     Clear(i);   
-                    If Rel.Findset then 
-                    repeat
-                        i+=1;
-                        Skulst.Get(i,ChildItem);
-                        SkuIDlst.Get(i,VarID);
-                        Item[2].Get(ChildItem);
-                        If Item[2]."Shopify Product Variant ID" <> VarID then
-                        begin
-                            Item[2].Validate("Shopify Product Variant ID",VarID);
-                            Item[2].Modify(False);
+                    ProdID := Get_Parent_Variant_Structure(Item[1],SkuLst,SkuIDlst);
+                    If ProdID = 0 then 
+                        ErrFlg := true
+                    else    
+                        repeat
+                            i+=1;
+                            If Skulst.Get(i,ChildItem) then
+                            begin
+                                if Rel."Child Item No." <> ChildItem then
+                                    ErrFlg := True;
+                            End 
+                            else
+                                ErrFlg := true;
+                        until (Rel.next = 0) or Errflg;           
+                    If ErrFlg then 
+                    begin
+                        If GuiAllowed then Win.Update(2,Item[1]."No.");
+                        If ProdID = 0 then
+                                Update_Error_Log(StrSubStno('Parent %1 Shopify Product ID %2 and or Handle Cannot be found in Shopify'
+                                                                    ,Item[1]."No.",Item[1]."Shopify Product ID"))
+                            else
+                                Update_Error_log(Strsubstno('Parent %1 has missing variants and or variant positions are not correct',Item[1]."No."));
+                    end
+                    Else
+                    begin
+                        Clear(i);   
+                        If Rel.Findset then 
+                        repeat
+                            i+=1;
+                            Skulst.Get(i,ChildItem);
+                            SkuIDlst.Get(i,VarID);
+                            Item[2].Get(ChildItem);
+                            If Item[2]."Shopify Product Variant ID" <> VarID then
+                            begin
+                                Item[2].Validate("Shopify Product Variant ID",VarID);
+                                Item[2].Modify(False);
+                            end;
+                            Clear(errflg);    
+                            If i = 1 then
+                            begin                       
+                                If Item[1]."Shopify Product ID" <> ProdID then
+                                Begin                  
+                                    Item[1].Validate("Shopify Product ID",ProdID);
+                                    Item[1].Modify(False);
+                                end;    
+                                If Item[1]."Shopify Product Variant ID" <> VarID then
+                                Begin;
+                                    Item[1].Validate("Shopify Product Variant ID",VarID);
+                                    Item[1].Modify(False);
+                                end;    
                         end;
-                        Clear(errflg);    
-                        If i = 1 then
-                        begin                       
-                            If Item[1]."Shopify Product ID" <> ProdID then
-                            Begin                  
-                                Item[1].Validate("Shopify Product ID",ProdID);
-                                Item[1].Modify(False);
-                            end;    
-                            If Item[1]."Shopify Product Variant ID" <> VarID then
-                            Begin;
-                                Item[1].Validate("Shopify Product Variant ID",VarID);
-                                Item[1].Modify(False);
-                            end;    
-                       end;
-                    until rel.next = 0;            
+                        until rel.next = 0;            
+                    end;
+                    If GuiAllowed then Win.Update(2,'');
                 end;
-                If GuiAllowed then Win.Update(2,'');
-            end;
         until Item[1].next = 0;
         If GuiAllowed then win.close;    
     end;
@@ -749,6 +752,7 @@ codeunit 80000 "HL Shopify Routines"
         //now we do the items that exist by updating the created/updating Product Variant
         //no need to worry about title now
         Clear(Parms);
+        Item[1].LockTable(true);
         Item[1].Reset;
         If Itemfilt <> '' then
             Item[1].Setrange("No.",ItemFilt);
@@ -873,7 +877,7 @@ codeunit 80000 "HL Shopify Routines"
                         end        
                         else
                         begin
-                            Sleep(200);
+                            Sleep(100);
                             If Shopify_Data(Paction::PUT,
                                 ShopifyBase + 'variants/'+ Format(Item[2]."Shopify Product Variant ID") + '.json'
                                 ,Parms,Payload,Data) Then
@@ -910,6 +914,7 @@ codeunit 80000 "HL Shopify Routines"
         Log:record "HL Shopify Update Log";
     begin
         If GuiAllowed then Wind.open('Unpublishing Shopify Item #1#################');
+        Item.LockTable(true);
         Item.Reset;
         Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
         If Itemfilt <> '' then
@@ -930,7 +935,12 @@ codeunit 80000 "HL Shopify Routines"
                        ShopifyBase + 'products/'+ Format(Item."Shopify Product ID") + '.json'
                             ,Parms,Payload,Data) then
                 Update_Error_Log(StrSubstNo('Failed to Unpublish Parent Item %1 Using Product ID %2'
-                                                ,Item."No.",Item."Shopify Product ID"));              
+                                                ,Item."No.",Item."Shopify Product ID"))
+            else
+            begin
+                Clear(Item."Shopify Publish Flag");
+                Item.Modify(False);
+            end;                                        
         until Item.Next = 0;
         If GuiAllowed then Wind.Close; 
     end;
@@ -947,6 +957,7 @@ codeunit 80000 "HL Shopify Routines"
         wind:Dialog;
         Log:record "HL Shopify Update Log";
     begin
+        Item.LockTable(true);
         Item.Reset;
         Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
         If Itemfilt <> '' then
@@ -985,6 +996,7 @@ codeunit 80000 "HL Shopify Routines"
     begin
         If GuiAllowed then Wind.open('Refreshing Shopify Item #1#################');
         // update any changes to titles etc
+        Item.LockTable(true);
         Item.Reset;
         Item.Setrange("Shopify Item",Item."Shopify Item"::Shopify);
         If Itemfilt <> '' then
@@ -1020,9 +1032,12 @@ codeunit 80000 "HL Shopify Routines"
     var
         Log:record "HL Shopify Update Log";
         Setup:record "Sales & Receivables Setup";
+        flg:Boolean;
     begin
+        Setup.get;
         Refresh_Product_Pricing(ItemFilt);
-        If Not Bypass then
+        Flg := Setup."By Pass Child Structure Check" Or Bypass;
+        If Not Flg then
             Check_Shopify_Child_Structure(ItemFilt);
         Build_Shopify_Parents(ItemFilt);
         Build_Shopify_Children(ItemFilt);    
@@ -1034,7 +1049,6 @@ codeunit 80000 "HL Shopify Routines"
         Log.Setrange("Web Service Error",'');
         If Log.Findset then
         begin
-            Setup.get;
             Send_Email_Msg('Shopify Item Synch Errors','Please check the Shopify Update Log it contains errors for todays date','vpacker@practiva.com.au');
             Send_Email_Msg('Shopify Item Synch Errors','Please check the Shopify Update Log it contains errors for todays date',Setup."Shopify Excpt Email Address");
         end;
@@ -2106,7 +2120,7 @@ codeunit 80000 "HL Shopify Routines"
                     Exit(true);
         exit(False);
     end;
-    local procedure Get_Order_Reconciliation_Transactions(var OrdRec:record "HL Order Reconciliations")
+    procedure Get_Order_Reconciliation_Transactions(var OrdRec:record "HL Order Reconciliations")
     var
         Parms:Dictionary of [text,text];
         Data:JsonObject;
@@ -2196,7 +2210,7 @@ codeunit 80000 "HL Shopify Routines"
         begin
             Clear(Data);
             Clear(Parms);
-            Parms.Add('fields','note,source_name,total_shipping_price_set,total_price');
+            Parms.Add('fields','note,note_attributes,source_name,total_shipping_price_set,total_price');
             if Shopify_Data(Paction::GET,ShopifyBase + 'orders/' + Format(OrdRec."Shopify Order ID") + '.json'
                                     ,Parms,PayLoad,Data) then
             begin
@@ -2213,6 +2227,12 @@ codeunit 80000 "HL Shopify Routines"
                                 If JsToken[1].SelectToken('note',JsToken[2]) then
                                     If not Jstoken[2].AsValue().IsNull then
                                         OrdRec."Reference No" := CopyStr(Extract_MarketPlace_Invoice_Number(JsToken[2].AsValue().AsText()),1,25);
+                                If OrdRec."Reference No" = '' then
+                                    If JsToken[1].SelectToken('note_attributes',JsToken[2]) then
+                                        If JsToken[2].AsArray().Get(0,JsToken[1]) then
+                                            If JsToken[1].SelectToken('value',JsToken[2]) then
+                                                If not Jstoken[2].AsValue().IsNull then
+                                                    OrdRec."Reference No" := JsToken[2].AsValue().AsText();
                             end 
                             else
                                 OrdRec."Reference No" := CopyStr(JsToken[2].AsValue().AsText(),1,25);            
@@ -2679,14 +2699,14 @@ codeunit 80000 "HL Shopify Routines"
             end;
         until cnt <=0; 
         Commit;
-        Process_Current_Refunds();
+        Process_Current_Refunds(false);
         //do every 7 days 
         If Date2DWY(today,1) = 6 then Process_Refunds(0);
         If Date2DWY(today,1) = 7 then Check_For_Extra_Refunds(0);
         if GuiAllowed then win.Close;
         exit(true);
     end;
-    procedure Process_Current_Refunds():Integer
+    procedure Process_Current_Refunds(ByPassDateFilter:Boolean):Integer
     var
         Recon:record "HL Order Reconciliations";
         OrdHdr:record "HL Shopify Order Header";
@@ -2697,7 +2717,8 @@ codeunit 80000 "HL Shopify Routines"
         Recon.Setrange("Apply Status",Recon."Apply Status"::UnApplied,Recon."Apply Status"::CashApplied);
         Recon.Setrange("Shopify Order Type",Recon."Shopify Order Type"::Refund);
         Recon.Setrange("Extra Refund Count",0);
-        Recon.Setfilter("Shopify Order Date",'>=%1',Calcdate('-3W',Today));
+        If Not ByPassDateFilter then
+            Recon.Setfilter("Shopify Order Date",'>=%1',Calcdate('-3W',Today));
         If Recon.Findset then
         repeat
             OrdHdr.reset;
@@ -3562,9 +3583,11 @@ codeunit 80000 "HL Shopify Routines"
         SalesInvHdr:record "Sales Invoice Header";
         SalesCrdHdr:Record "Sales Cr.Memo Header";
         OrdNo:Code[20];
+        OrdNos:list of [Code[20]];
+        OrdTypes:list of [Enum "Sales Document Type"];
         Cu:Codeunit "Sales-Post";
         CuRel:Codeunit "Release Sales Document";
-        HLOrdHdr:Array[2] of record "HL Shopify Order Header";
+        HLOrdHdr:record "HL Shopify Order Header";
         HLOrdLin:record "HL Shopify Order Lines";
         Cust:Record Customer;
         LineNo:Integer;
@@ -3821,12 +3844,12 @@ codeunit 80000 "HL Shopify Routines"
                 Excp.Reset();
                 Excp.Setrange(ShopifyID,OrdNoID);
                 If Excp.findset then Exit; 
-                HLOrdHdr[1].reset;
-                HLOrdHdr[1].Setrange(ID,OrdNoID);
-                If HLOrdHdr[1].findset then
+                HLOrdHdr.reset;
+                HLOrdHdr.Setrange(ID,OrdNoID);
+                If HLOrdHdr.findset then
                 begin
                     HLOrdLin.Reset;
-                    HLOrdLin.SetRange(ShopifyID,HLOrdHdr[1].ID);
+                    HLOrdLin.SetRange(ShopifyID,HLOrdHdr.ID);
                     HLOrdLin.Setrange("Not Supplied",false);
                     HLOrdLin.Setfilter("Item No.",'<>%1','');
                     HLOrdLin.Setrange("Is NPF Item",True);
@@ -3836,15 +3859,15 @@ codeunit 80000 "HL Shopify Routines"
                         HLOrdLin.CalcSums("Order Qty","NPF Shipment Qty");
                         If HLOrdLin."Order Qty" = HLOrdLin."NPF Shipment Qty" then 
                         begin                   
-                            HLOrdHdr[1]."NPF Shipment Status" := HLOrdHdr[1]."NPF Shipment Status"::Complete;       
-                            HLOrdHdr[1].Modify();
+                            HLOrdHdr."NPF Shipment Status" := HLOrdHdr."NPF Shipment Status"::Complete;       
+                            HLOrdHdr.Modify();
                         end
                         else
                         begin
                             Excp.init;
                             Clear(Excp.ID);
                             Excp.insert;
-                            Excp.ShopifyID := HLOrdHdr[1].ID;
+                            Excp.ShopifyID := HLOrdHdr.ID;
                             Excp.Exception := StrsubStno('NPF -> Order Total Qty = %1,Shipped Total Qty = %2',HLOrdLin."Order Qty", HLOrdLin."NPF Shipment Qty"); 
                             excp.Modify();
                             Result := False;
@@ -3854,6 +3877,8 @@ codeunit 80000 "HL Shopify Routines"
             end;
             If Result then
             begin
+                Clear(OrdNos);
+                Clear(OrdTypes);
                 Setup.get;
                 If Setup."Order Process Count" = 0 then
                 begin
@@ -3864,22 +3889,22 @@ codeunit 80000 "HL Shopify Routines"
                 For Loop := 1 to 2  do
                 begin
                     Clear(OrderCnt);
-                    HLOrdHdr[1].reset;
-                    HLOrdHdr[1].Setrange("Order Status",HLOrdHdr[1]."Order Status"::Open);
-                    HLOrdHdr[1].Setrange("BC Reference No.",'');
-                    If OrdNoID <> 0 then HLOrdHdr[1].Setrange(ID,OrdNoID);
+                    HLOrdHdr.reset;
+                    HLOrdHdr.Setrange("Order Status",HLOrdHdr."Order Status"::Open);
+                    HLOrdHdr.Setrange("BC Reference No.",'');
+                    If OrdNoID <> 0 then HLOrdHdr.Setrange(ID,OrdNoID);
                     if Loop = 1 then
                     begin
-                        HLOrdHdr[1].Setrange("NPF Shipment Status",HLOrdHdr[1]."NPF Shipment Status"::Complete);
-                        HLordHdr[1].Setfilter("Order Type",'%1|%2',HLOrdHdr[1]."Order Type"::Invoice,HLOrdHdr[1]."Order Type"::Cancelled);
+                        HLOrdHdr.Setrange("NPF Shipment Status",HLOrdHdr."NPF Shipment Status"::Complete);
+                        HLordHdr.Setfilter("Order Type",'%1|%2',HLOrdHdr."Order Type"::Invoice,HLOrdHdr."Order Type"::Cancelled);
                     end    
                     else
-                        HLOrdHdr[1].Setrange("Order Type",HLOrdHdr[1]."Order Type"::CreditMemo);
+                        HLOrdHdr.Setrange("Order Type",HLOrdHdr."Order Type"::CreditMemo);
                     Clear(ProcCnt);    
                     Clear(i);
-                    If HLOrdHdr[1].findset then
+                    If HLOrdHdr.findset then
                     begin
-                        if GuiAllowed then win.update(2,HLOrdHdr[1].Count);
+                        if GuiAllowed then win.update(2,HLOrdHdr.Count);
                         repeat
                             OrderCnt += 1;
                             If ProcCnt = 0 then
@@ -3897,12 +3922,14 @@ codeunit 80000 "HL Shopify Routines"
                                 SalesHdr."Your Reference" := 'SHOPIFY ORDERS';
                                 SalesHdr.Insert(true);
                                 OrdNo := SalesHdr."No.";
+                                OrdNos.Add(OrdNo);
+                                OrdTypes.add(SalesHdr."Document Type");
                             end;
                             ProcCnt += 1;    
                             if GuiAllowed Then Win.Update(1,OrderCnt);
                             Clear(ExFlg);
                             HLOrdLin.Reset();
-                            HLOrdLin.Setrange(ShopifyID,HLOrdHdr[1].ID);
+                            HLOrdLin.Setrange(ShopifyID,HLOrdHdr.ID);
                             HLOrdLin.Setrange("Not Supplied",False);
                             HLOrdLin.Setfilter("Item No.",'<>%1','');
                             HLOrdLin.Setfilter("order Qty",'>0');
@@ -3932,8 +3959,8 @@ codeunit 80000 "HL Shopify Routines"
                                     Salesline."Bundle Item No." :=  HLOrdLin."Bundle Item No.";
                                     Salesline."Bundle Order Qty" := HLOrdLin."Bundle Order Qty";
                                     Salesline."Bundle Unit Price" := HLOrdLin."Bundle Unit Price";
-                                    If HLOrdHdr[1]."Shopify Order Currency" <> 'AUD' then
-                                        SalesLine.validate("Currency Code",HLOrdHdr[1]."Shopify Order Currency");
+                                    If HLOrdHdr."Shopify Order Currency" <> 'AUD' then
+                                        SalesLine.validate("Currency Code",HLOrdHdr."Shopify Order Currency");
                                     If (HLOrdLin."Tax Amount" = 0) and (SalesLine."VAT %" > 0) then
                                         SalesLine.Validate("VAT Prod. Posting Group",'NO GST')
                                     else If (HLOrdLin."Tax Amount" > 0) and (SalesLine."VAT %" = 0) then
@@ -3942,7 +3969,7 @@ codeunit 80000 "HL Shopify Routines"
                                     SalesLine.Validate(Quantity,HLOrdLin."Order Qty");
                                     Salesline.Validate("Unit Price",HLOrdLin."Unit Price");
                                     Salesline.Validate("Line Discount Amount",HLOrdLin."Discount Amount");
-                                    Salesline."Shopify Order ID" := HLOrdHdr[1]."Shopify Order ID";
+                                    Salesline."Shopify Order ID" := HLOrdHdr."Shopify Order ID";
                                     SalesLine."Shopify Application ID" := HLOrdLin."Shopify Application ID";
                                     SalesLine."Rebate Supplier No." := Item."Vendor No.";
                                     SalesLine."Rebate Brand" := Item.Brand;
@@ -3960,16 +3987,16 @@ codeunit 80000 "HL Shopify Routines"
                                 SalesLine.Reset();
                                 salesLine.Setrange("Document Type",SalesHdr."Document Type");
                                 SalesLine.SetRange("Document No.",SalesHdr."No.");
-                                SalesLine.Setrange("Shopify Order ID",HLOrdHdr[1]."Shopify Order ID");
+                                SalesLine.Setrange("Shopify Order ID",HLOrdHdr."Shopify Order ID");
                                 If salesLine.Findset then
                                 begin 
                                     SalesLine.deleteall(true);
                                     if GuiAllowed then Message(strsubstno('Shopify Order No %1 skipped due to invalid item lines being detected.'
-                                                                ,HLOrdHdr[1]."Shopify Order No."));
+                                                                ,HLOrdHdr."Shopify Order No."));
                                     Excp.init;
                                     Clear(Excp.ID);
                                     Excp.insert;
-                                    Excp.ShopifyID := HLOrdHdr[1].ID;
+                                    Excp.ShopifyID := HLOrdHdr.ID;
                                     Excp.Exception := StrsubStno('Order Process -> Order Item %1 is missing critical setup information',Item."No."); 
                                     excp.Modify();
                                 end
@@ -3978,7 +4005,7 @@ codeunit 80000 "HL Shopify Routines"
                                     Excp.init;
                                     Clear(Excp.ID);
                                     Excp.insert;
-                                    Excp.ShopifyID := HLOrdHdr[1].ID;
+                                    Excp.ShopifyID := HLOrdHdr.ID;
                                     Excp.Exception := 'Order Process -> Order contains no items with order qty > 0 '; 
                                     excp.Modify();
                                 end;    
@@ -3986,7 +4013,7 @@ codeunit 80000 "HL Shopify Routines"
                             else
                             Begin
                                 // Now see if any shipping is defined against this Shopify Order
-                                If HLOrdHdr[1]."Freight Total" > 0 then
+                                If HLOrdHdr."Freight Total" > 0 then
                                 begin
                                     LineNo += 10;
                                     Clear(SalesLine);
@@ -3998,16 +4025,16 @@ codeunit 80000 "HL Shopify Routines"
                                     SalesLine.Validate(Type,SalesLine.TYpe::Item);
                                     SalesLine.validate("No.",'SHIPPING');
                                     SalesLine.Validate("VAT Prod. Posting Group",'GST10');
-                                    If HLOrdHdr[1]."Shopify Order Currency" <> 'AUD' then
-                                        SalesLine.validate("Currency Code",HLOrdHdr[1]."Shopify Order Currency");
+                                    If HLOrdHdr."Shopify Order Currency" <> 'AUD' then
+                                        SalesLine.validate("Currency Code",HLOrdHdr."Shopify Order Currency");
                                     SalesLine.Validate("Unit of Measure Code",'EA');    
                                     SalesLine.Validate(Quantity,1);
                                     Clear(Salesline."Auto Delivered");
-                                    Salesline.Validate("Unit Price",HLOrdHdr[1]."Freight Total");
-                                    Salesline."Shopify Order ID" := HLOrdHdr[1]."Shopify Order ID";
+                                    Salesline.Validate("Unit Price",HLOrdHdr."Freight Total");
+                                    Salesline."Shopify Order ID" := HLOrdHdr."Shopify Order ID";
                                     SalesLine.Modify(true);
                                 end;
-                                If HLOrdHdr[1]."Gift Card Total" > 0 then
+                                If HLOrdHdr."Gift Card Total" > 0 then
                                 begin
                                     LineNo += 10000;
                                     Clear(SalesLine);
@@ -4019,12 +4046,12 @@ codeunit 80000 "HL Shopify Routines"
                                     SalesLine.Validate(Type,SalesLine.TYpe::Item);
                                     SalesLine.validate("No.",'GIFT_CARD_REDEEM');
                                     SalesLine.Validate("VAT Prod. Posting Group",'NO GST');
-                                    If HLOrdHdr[1]."Shopify Order Currency" <> 'AUD' then
-                                        SalesLine.validate("Currency Code",HLOrdHdr[1]."Shopify Order Currency");
+                                    If HLOrdHdr."Shopify Order Currency" <> 'AUD' then
+                                        SalesLine.validate("Currency Code",HLOrdHdr."Shopify Order Currency");
                                     SalesLine.Validate("Unit of Measure Code",'EA');    
                                     SalesLine.Validate(Quantity,1);
-                                    Salesline.Validate("Unit Price",-HLOrdHdr[1]."Gift Card Total");
-                                    Salesline."Shopify Order ID" := HLOrdHdr[1]."Shopify Order ID";
+                                    Salesline.Validate("Unit Price",-HLOrdHdr."Gift Card Total");
+                                    Salesline."Shopify Order ID" := HLOrdHdr."Shopify Order ID";
                                     Clear(Salesline."Auto Delivered");
                                     SalesLine.Modify(true);
                                 end;
@@ -4060,8 +4087,8 @@ codeunit 80000 "HL Shopify Routines"
                                 */    
                                     // flag this shopify order as closed now
                                 // and save the BC order no
-                                HLOrdHdr[1]."BC Reference No." := OrdNo;
-                                HLOrdHdr[1].Modify();
+                                HLOrdHdr."BC Reference No." := OrdNo;
+                                HLOrdHdr.Modify();
                             end;
                             If ProcCnt >= Setup."Order Process Count" then
                             begin
@@ -4069,48 +4096,8 @@ codeunit 80000 "HL Shopify Routines"
                                 If Loop = 2 then SalesHdr."Reason Code" := 'CUSTRETURN'; 
                                 SalesHdr.Modify(true);
                                 Commit;
-                                // now release the sales order and attempt to post it now 
-                                if CuRel.Run(SalesHdr) then
-                                    if Cu.Run(SalesHdr) then
-                                    begin
-                                        HLOrdHdr[2].Reset;
-                                        HLOrdHdr[2].Setrange("Order Status",HLOrdHdr[2]."Order Status"::Open);
-                                        HLOrdHdr[2].Setrange("BC Reference No.",OrdNo);
-                                        if HLOrdHdr[2].Findset then
-                                        begin
-                                            HLOrdHdr[2].ModifyAll("Order Status",HLOrdHdr[2]."Order Status"::Closed);
-                                            Commit;
-                                            If Loop = 1 then
-                                            begin
-                                                SalesInvHdr.Reset;
-                                                SalesInvHdr.Setrange("Pre-Assigned No.",OrdNo);
-                                                if SalesInvHdr.findset then
-                                                begin
-                                                    HLOrdHdr[2].Reset;
-                                                    HLOrdHdr[2].Setrange("Order Status",HLOrdHdr[2]."Order Status"::Closed);
-                                                    HLOrdHdr[2].Setrange("BC Reference No.",OrdNo);
-                                                    if HLOrdHdr[2].Findset then
-                                                        HLOrdHdr[2].Modifyall("BC Reference No.",SalesInvHdr."No.");
-                                                end; 
-                                            end 
-                                            else
-                                            begin
-                                                SalesCrdHdr.Reset;
-                                                SalesCrdHdr.Setrange("Pre-Assigned No.",OrdNo);
-                                                if SalesCrdHdr.findset then
-                                                begin
-                                                    HLOrdHdr[2].Reset;
-                                                    HLOrdHdr[2].Setrange("Order Status",HLOrdHdr[2]."Order Status"::Closed);
-                                                    HLOrdHdr[2].Setrange("BC Reference No.",OrdNo);
-                                                    if HLOrdHdr[2].Findset then
-                                                        HLOrdHdr[2].Modifyall("BC Reference No.",SalesCrdHdr."No.");
-                                                end; 
-                                            end;
-                                        end;
-                                    end;
-                                    Commit;
                             end;    
-                        Until HLOrdHdr[1].next = 0;
+                        Until HLOrdHdr.next = 0;
                     end;    
                     If ProcCnt > 0 then
                     begin
@@ -4124,56 +4111,73 @@ codeunit 80000 "HL Shopify Routines"
                             If Loop = 2 then SalesHdr."Reason Code" := 'CUSTRETURN'; 
                             SalesHdr.Modify(true);
                             Commit;
-                            // now release the sales order and attempt to post it now 
+                        end;
+                    end;
+                end; 
+                Commit;       
+                if GuiAllowed Then Win.Close;
+                For i := 1 to OrdNos.Count do
+                begin
+                    If SalesHdr.get(OrdTypes.Get(i),OrdNos.get(i)) then
+                    begin
+                        SalesHdr.SetHideValidationDialog(true);
+                        // check and ensure some sales lines were created now
+                        SalesLine.reset;
+                        SalesLine.Setrange("Document Type",SalesHdr."Document Type");
+                        SalesLine.SetRange("Document No.",SalesHdr."No.");
+                        if SalesLine.Findset then
+                        begin
+                            Commit;
                             if CuRel.Run(SalesHdr) then
+                            begin
                                 if Cu.Run(SalesHdr) then
                                 begin
-                                    HLOrdHdr[2].Reset;
-                                    HLOrdHdr[2].Setrange("Order Status",HLOrdHdr[2]."Order Status"::Open);
-                                    HLOrdHdr[2].Setrange("BC Reference No.",OrdNo);
-                                    if HLOrdHdr[2].Findset then
+                                    HLOrdHdr.Reset;
+                                    HLOrdHdr.Setrange("Order Status",HLOrdHdr."Order Status"::Open);
+                                    HLOrdHdr.Setrange("BC Reference No.",OrdNos.get(i));
+                                    if HLOrdHdr.Findset then
                                     begin
-                                        HLOrdHdr[2].ModifyAll("Order Status",HLOrdHdr[2]."Order Status"::Closed);
-                                        Commit;
-                                        If Loop = 1 then
+                                        HLOrdHdr.ModifyAll("Order Status",HLOrdHdr."Order Status"::Closed);
+                                        If OrdTypes.get(i) = SalesHdr."Document Type"::Invoice then
                                         begin
                                             SalesInvHdr.Reset;
-                                            SalesInvHdr.Setrange("Pre-Assigned No.",OrdNo);
+                                            SalesInvHdr.Setrange("Pre-Assigned No.",OrdNos.get(i));
                                             if SalesInvHdr.findset then
                                             begin
-                                                HLOrdHdr[2].Reset;
-                                                HLOrdHdr[2].Setrange("Order Status",HLOrdHdr[2]."Order Status"::Closed);
-                                                HLOrdHdr[2].Setrange("BC Reference No.",OrdNo);
-                                                if HLOrdHdr[2].Findset then
-                                                    HLOrdHdr[2].Modifyall("BC Reference No.",SalesInvHdr."No.");
+                                                HLOrdHdr.Reset;
+                                                HLOrdHdr.Setrange("Order Status",HLOrdHdr."Order Status"::Closed);
+                                                HLOrdHdr.Setrange("BC Reference No.",OrdNos.Get(i));
+                                                if HlOrdHdr.Findset then
+                                                    HLOrdHdr.Modifyall("BC Reference No.",SalesInvHdr."No.",False);
                                             end; 
                                         end 
                                         else
                                         begin
                                             SalesCrdHdr.Reset;
-                                            SalesCrdHdr.Setrange("Pre-Assigned No.",OrdNo);
+                                            SalesCrdHdr.Setrange("Pre-Assigned No.",OrdNos.Get(i));
                                             if SalesCrdHdr.findset then
                                             begin
-                                                HLOrdHdr[2].Reset;
-                                                HLOrdHdr[2].Setrange("Order Status",HLOrdHdr[2]."Order Status"::Closed);
-                                                HLOrdHdr[2].Setrange("BC Reference No.",OrdNo);
-                                                if HLOrdHdr[2].Findset then
-                                                    HLOrdHdr[2].Modifyall("BC Reference No.",SalesCrdHdr."No.");
+                                                HLOrdHdr.Reset;
+                                                HLOrdHdr.Setrange("Order Status",HLOrdHdr."Order Status"::Closed);
+                                                HLOrdHdr.Setrange("BC Reference No.",OrdNos.Get(i));
+                                                if HLOrdHdr.Findset then
+                                                    HLOrdHdr.Modifyall("BC Reference No.",SalesCrdHdr."No.",False);
                                             end; 
                                         end;
-                                    end; 
-                                end;        
+                                    end;
+                                    Commit; 
+                                end
+                                else 
+                                    Error('Failed to Post Sales Invoice %1',OrdNos.Get(i));
+                            end
+                            else 
+                                Error('Failed to Release Sales Invoice %1',OrdNos.Get(i));
                         end
                         else
-                        begin
-                            SalesHdr.SetHideValidationDialog(true);
-                            SalesHdr.Delete(True);
-                        end;   
-                        Commit;
-                    end;
-                end;    
-                if GuiAllowed Then Win.Close;
-            end;
+                           SalesHdr.Delete(True);
+                   end;    
+                end;
+            End;
         end;
         If Excp.count > 1 then Send_Email_Msg('Order Exceptions','Check Shopify Sales Orders .. Exceptions exist requiring manual intervention.',Setup."Exception Email Address");
         If PstDate <> 0D then

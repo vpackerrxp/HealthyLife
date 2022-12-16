@@ -8,6 +8,8 @@ page 80024 "HL Shopify Order Recon"
     InsertAllowed = false;
     //ModifyAllowed = false;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
    
     layout
     {

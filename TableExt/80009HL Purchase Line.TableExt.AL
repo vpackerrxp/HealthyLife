@@ -90,6 +90,5 @@ tableextension 80009 "HL Purchase Line Ext" extends "Purchase Line"
         {
             editable = false;
         }
-
     }
 }

@@ -5,6 +5,8 @@ page 80037 "HL NPF SOH"
     UsageCategory = Lists;
     SourceTable = "HL NPF Inventory";
     Caption = 'Stock On Hand';     
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
       area(Content)

@@ -7,6 +7,8 @@ page 80006 "HL Shopify Orders"
     InsertAllowed = false;
     ShowFilter = false;
     Caption = 'Shopify Orders';
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
 
     layout
     {
@@ -294,8 +296,8 @@ page 80006 "HL Shopify Orders"
                         SOrdHr:Record "HL Shopify Order Header";
                     begin
                         If (Rec."Order Type" = Rec."Order Type"::Invoice) 
-                            And Not SInv.Get(rec."BC Reference No.") then
-                       begin
+                            And (Rec."BC Reference No." <> '') AND Not SInv.Get(rec."BC Reference No.") then
+                        begin
                             If  Confirm('Update Entry Now',True) then
                             begin
                                 SInv.Reset;
@@ -310,13 +312,24 @@ page 80006 "HL Shopify Orders"
                                         SOrdHr."Order Status" := SOrdHr."Order Status"::Closed;
                                         SOrdHr.Modify(false);
                                     until SOrdHr.next = 0;    
-                                    CurrPage.update(false);
                                 end;       
-                            end;
+                            end
+                            else 
+                            begin
+                                If Copystr(Rec."BC Reference No.",1,20).StartsWith('SI') then
+                                    If Confirm(StrsubStno('Remove Sales Invoice No %1 Now',Rec."BC Reference No."),True) then
+                                    begin
+                                        SOrdHr.reset;
+                                        SOrdHr.Setrange("BC Reference No.",Rec."BC Reference No.");
+                                        If SOrdHr.Findset then
+                                            SOrdHr.ModifyAll("BC Reference No.",'',false);
+                                    end;
+                            end;    
+                            CurrPage.update(false);
                         end;    
                         If (Rec."Order Type" = Rec."Order Type"::CreditMemo) 
-                            And Not SCrd.Get(rec."BC Reference No.") then
-                         begin
+                            And (Rec."BC Reference No." <> '') And Not SCrd.Get(rec."BC Reference No.") then
+                        begin
                             If Confirm('Update Entry Now',True) then
                             begin
                                 SCrd.Reset;
@@ -331,10 +344,22 @@ page 80006 "HL Shopify Orders"
                                         SOrdHr."Order Status" := SOrdHr."Order Status"::Closed;
                                         SOrdHr.Modify(false);
                                     until SOrdHr.next = 0;    
-                                    CurrPage.update(false);
                                 end;       
                             end;
-                        end;
+                        end
+                        else 
+                        begin
+                                If Copystr(Rec."BC Reference No.",1,20).StartsWith('SCR') then
+                                    If Confirm(StrsubStno('Remove Sales Credit No %1 Now',Rec."BC Reference No."),True) then
+                                    begin
+                                        SOrdHr.reset;
+                                        SOrdHr.Setrange("BC Reference No.",Rec."BC Reference No.");
+                                        If SOrdHr.Findset then
+                                            SOrdHr.ModifyAll("BC Reference No.",'',false);
+                                    end;
+                        end;    
+                        CurrPage.update(false);
+
                     end;    
                 }
                 field("Currency Code"; rec."Shopify Order Currency")

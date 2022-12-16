@@ -93,7 +93,33 @@ var
             Commit;
         end;
         win.close;                        
-    end;                        
+    end;
+    procedure Fix_market_Place()
+    var
+        Recon:record "HL Order Reconciliations";
+        CU:Codeunit "HL Shopify Routines";
+        win:dialog;
+        i:Integer;
+    begin
+        win.Open('Fixing Record #1######## of #2#######');
+        Clear(i);
+        Recon.Reset;
+        Recon.Setrange("Payment Gate Way",Recon."Payment Gate Way"::MarketPlace);
+        Recon.Setrange("Reference No",'');
+        If Recon.FindSet() then
+        begin
+            win.update(2,Recon.Count);
+            repeat
+                i+=1;
+                CU.Get_Order_Reconciliation_Transactions(Recon);
+                win.update(1,i);
+                Recon.Modify(false);
+            until Recon.Next = 0;
+        end;    
+        win.close;
+    end;
+
+
     
     procedure Get_Shopify_Orders(StartIndex:BigInteger):Boolean
     var

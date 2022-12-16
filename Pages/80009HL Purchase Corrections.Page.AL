@@ -8,6 +8,8 @@ page 80009 "HL Purchase Corrections"
     DeleteAllowed = false;
     InsertAllowed = false;
     ModifyAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
 
     layout
     {

@@ -5,6 +5,8 @@ page 80041 "HL Delta Inventory"
     UsageCategory = Tasks;
     SourceTable = "HL NPF Inventory Transactions";
     Caption = 'Delta Inventory Adjustments';
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
        
     layout
     {

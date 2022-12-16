@@ -5,6 +5,8 @@ page 80005 "HL Promotion SKU"
     SourceTable = "HL Promotion Sku";
     InsertAllowed = False;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
 
     layout
     {

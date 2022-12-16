@@ -3,6 +3,8 @@ page 80004 "HL Shopify Items"
     PageType = List;
     SourceTable = Item;
     SourceTableView = Where("Shopify Transfer Flag" = Const(true));
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(Content)

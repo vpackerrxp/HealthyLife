@@ -4,6 +4,8 @@ page 80013 "HL Shopify Order Applications"
     UsageCategory = Lists;
     ApplicationArea = All;
     SourceTable = "HL Shopfiy Order Applications";
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
  
     layout
     {

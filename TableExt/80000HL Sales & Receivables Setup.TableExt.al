@@ -89,9 +89,11 @@ tableextension 80000 "HL Sales & Receivables Ext " extends "Sales & Receivables 
         {
             Caption = 'Shopify Update Exceptions Email Address';
         }
-
-
-
-
-    }
+        Field(80039;"By Pass Child Structure Check";boolean)
+        {
+        }
+        field(80040; "Web Service Audience URL";Text[80])
+        {
+        }
+     }
 }

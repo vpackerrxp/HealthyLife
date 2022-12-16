@@ -7,6 +7,8 @@ page 80020 "HL Shopify Child Maintenance"
     InsertAllowed = false;
     DeleteAllowed = false;
     Caption = 'Shopify Child Maintenance';
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(Content)

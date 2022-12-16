@@ -5,6 +5,8 @@ page 80019 "HL Rebate Brand List"
     SourceTable = "HL Rebate Sales";
     SourceTableView = where("Rebate Period"=Const(1));
     Editable = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
 
     layout
     {

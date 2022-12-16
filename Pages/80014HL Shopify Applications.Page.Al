@@ -7,6 +7,8 @@ page 80014 "HL Shopify Applications"
     InsertAllowed = false;
     //DeleteAllowed = false;
     Caption = 'Shopify Applications';    
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
   
     layout
     {

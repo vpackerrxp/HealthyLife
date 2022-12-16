@@ -8,6 +8,8 @@ page 80046 "HL Rebate Payments"
     SourceTableTemporary = true;
     InsertAllowed = false;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

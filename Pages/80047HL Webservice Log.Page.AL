@@ -9,6 +9,8 @@ page 80047 "HL Webservice Log"
     InsertAllowed = false;
     ModifyAllowed = false;
     DeleteAllowed = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

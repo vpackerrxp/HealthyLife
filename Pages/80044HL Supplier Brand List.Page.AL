@@ -6,6 +6,8 @@ page 80044 "HL Supplier Brand List"
     ApplicationArea = All;
     SourceTable = "HL Supplier Brand Rebates";
     Editable = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

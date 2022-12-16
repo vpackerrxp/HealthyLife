@@ -610,23 +610,23 @@ Codeunit 80002 "HL Import Export Routines"
                                         ItemUnit.Validate("Item No.",Item."No.");
                                         ItemUnit.Validate(Code,UOM);
                                         ItemUnit.Validate("Qty. per Unit of Measure",1);
-                                        ItemUnit.Validate(Weight,Kilo);
-                                        ItemUnit.Validate(Width,Dims[1]);
-                                        ItemUnit.Validate(Length,Dims[2]);
-                                        ItemUnit.Validate(Height,Dims[3]);
+                                        ItemUnit.Weight :=Kilo;
+                                        ItemUnit.Width := Dims[1];
+                                        ItemUnit.Length := Dims[2];
+                                        ItemUnit.Height := Dims[3];
                                         ItemUnit.Insert(False);
                                         Commit;
                                         ChgFlg := True;
                                     end
                                     else begin
-                                        if Kilo <> ItemUnit.weight then ChgFlg := True;    
-                                        ItemUnit.Validate(Weight,Kilo);
+                                        if Kilo <> ItemUnit.weight then ChgFlg := True;
+                                        ItemUnit.Weight := Kilo;
                                         If Dims[1] <> ItemUnit.width then Chgflg := true;
-                                        ItemUnit.Validate(Width,Dims[1]);
+                                        ItemUnit.Width := Dims[1];
                                         If Dims[2] <> ItemUnit.Length then Chgflg := true;
-                                        ItemUnit.Validate(Length,Dims[2]);
+                                        ItemUnit.Length := Dims[2];
                                         If Dims[3] <> ItemUnit.Height then Chgflg := true;
-                                        ItemUnit.Validate(Height,Dims[3]);
+                                        ItemUnit.Height := Dims[3];
                                         ItemUnit.Modify(False);
                                       end;
                                     Item.Validate("Base Unit Of Measure", UOM);
@@ -639,8 +639,8 @@ Codeunit 80002 "HL Import Export Routines"
                                     begin
                                         Item.Type := Item.Type::"Non-Inventory";
                                         Item."Purchasing Blocked" := true;
-                                        Item."Unit Cost" := 0;
-                                        Item."Unit Price" := 0;
+                                        Item.validate("Unit Cost",0);
+                                        Item.validate("Unit Price",0);
                                     end;
                                     If Item.Type = Item.Type::Inventory then 
                                     begin
@@ -747,7 +747,7 @@ Codeunit 80002 "HL Import Export Routines"
                                         else
                                             If Not Evaluate(UnitCst, Flds.Get(23)) then
                                                 error(StrsubStno('Invalid Rebate Wholesale Cost for Item %1', Item."No."));
-                                        Item.Validate("Rebate Wholesale Cost",UnitCst);    
+                                        Item.Validate("Rebate Wholesale Cost",UnitCst);
                                         If Not Gp.get(Flds.get(24).ToUpper()) then
                                             Error(StrSubStno('General Product Posting Group %1 does not exist for Item %2', Flds.get(24).ToUpper(), Item."No."));
                                         Item.Validate("Gen. Prod. Posting Group", Flds.get(24).ToUpper());
@@ -881,13 +881,13 @@ Codeunit 80002 "HL Import Export Routines"
                                             begin
                                                 ItemUnit.Validate("Qty. per Unit of Measure",QtyPer);
                                                 if Kilo <> ItemUnit.weight then ChgFlg := True;    
-                                                ItemUnit.Validate(Weight,Kilo * QtyPer);
+                                                ItemUnit.Weight := Kilo * QtyPer;
                                                 If Dims[1] <> ItemUnit.width then Chgflg := true;
-                                                ItemUnit.Validate(Width,Dims[1] * QtyPer);
+                                                ItemUnit.Width := Dims[1] * QtyPer;
                                                 If Dims[2] <> ItemUnit.Length then Chgflg := true;
-                                                ItemUnit.Validate(Length,Dims[2] * QtyPer);
+                                                ItemUnit.Length := Dims[2] * QtyPer;
                                                 If Dims[3] <> ItemUnit.Height then Chgflg := true;
-                                                ItemUnit.Validate(Height,Dims[3] * QtyPer);
+                                                ItemUnit.Height := Dims[3] * QtyPer;
                                                 ItemUnit.Modify(False);
                                             end
                                             else 
@@ -896,10 +896,10 @@ Codeunit 80002 "HL Import Export Routines"
                                                 ItemUnit.validate("item No.",Item."No.");
                                                 ItemUnit.validate(Code, UOM);
                                                 ItemUnit.validate("Qty. per Unit of Measure",QtyPer);
-                                                Itemunit.validate(Weight,Kilo * QtyPer);
-                                                ItemUnit.validate(Width,Dims[1] * QtyPer);
-                                                ItemUnit.validate(Length,Dims[2] * QtyPer);
-                                                ItemUnit.Validate(Height,Dims[3] * QtyPer);
+                                                Itemunit.Weight := Kilo * QtyPer;
+                                                ItemUnit.Width := Dims[1] * QtyPer;
+                                                ItemUnit.Length := Dims[2] * QtyPer;
+                                                ItemUnit.Height := Dims[3] * QtyPer;
                                                 ItemUnit.Insert(False);
                                                 ChgFlg := True;
                                             end;
@@ -925,13 +925,13 @@ Codeunit 80002 "HL Import Export Routines"
                                             If ItemUnit.Get(Item."No.", UOM) then begin
                                                 ItemUnit.Validate("Qty. per Unit of Measure",QtyPer);
                                                 if Kilo <> ItemUnit.weight then ChgFlg := True;    
-                                                ItemUnit.Validate(Weight,Kilo * QtyPer);
+                                                ItemUnit.Weight := Kilo * QtyPer;
                                                 If Dims[1] <> ItemUnit.width then Chgflg := true;
-                                                ItemUnit.Validate(Width,Dims[1] * QtyPer);
+                                                ItemUnit.Width := Dims[1] * QtyPer;
                                                 If Dims[2] <> ItemUnit.Length then Chgflg := true;
-                                                ItemUnit.Validate(Length,Dims[2] * QtyPer);
+                                                ItemUnit.Length := Dims[2] * QtyPer;
                                                 If Dims[3] <> ItemUnit.Height then Chgflg := true;
-                                                ItemUnit.Validate(Height,Dims[3] * QtyPer);
+                                                ItemUnit.Height := Dims[3] * QtyPer;
                                                 ItemUnit.Modify(False);
                                             end
                                             else begin
@@ -939,10 +939,10 @@ Codeunit 80002 "HL Import Export Routines"
                                                 ItemUnit.Validate("item No.",Item."No.");
                                                 ItemUnit.validate(Code, UOM);
                                                 ItemUnit.validate("Qty. per Unit of Measure",QtyPer);
-                                                Itemunit.validate(Weight,Kilo * QtyPer);
-                                                ItemUnit.validate(Width,Dims[1] * QtyPer);
-                                                ItemUnit.validate(Length,Dims[2] * QtyPer);
-                                                ItemUnit.Validate(Height,Dims[3] * QtyPer);
+                                                Itemunit.Weight := Kilo * QtyPer;
+                                                ItemUnit.Width := Dims[1] * QtyPer;
+                                                ItemUnit.Length := Dims[2] * QtyPer;
+                                                ItemUnit.Height := Dims[3] * QtyPer;
                                                 ItemUnit.Insert(False);
                                                 ChgFlg := True;
                                             end;
@@ -958,10 +958,11 @@ Codeunit 80002 "HL Import Export Routines"
                                     end;
                                     If ChgFlg then
                                     begin
+                                        Item."Web Service Update Flag" := True;
                                         Item."Shopify Transfer Flag" := true;
                                         Item.Update_Parent(); 
-                                    end;                                               
-                                   Item.Modify();
+                                    end; 
+                                    Item.Modify(false);
                                 end
                                 else
                                     Error(StrSubstNo('Field Count Does Not = 41 .. occured at Line Position %1 check for extra commas in the data', SkipCnt));
@@ -2889,7 +2890,7 @@ end;
             Item.Reset;
             If Item.Findset then
             repeat
-                Cu.Process_Items(Item."No.",True);
+                Cu.Process_Items(Item."No.",true);
             Until Item.Next = 0;
         end;            
     end;

@@ -3,6 +3,8 @@ page 80012 "HL Rebate Sales"
     Caption = 'Rebate Sales';
     PageType = Worksheet;
     SourceTable = "HL Rebate Sales";
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     
     layout
     {

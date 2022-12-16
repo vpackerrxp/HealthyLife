@@ -6,6 +6,8 @@ page 80042 "HL Check Inv Reconciliations"
     SourceTable = "HL Shopify Order header";
     SourceTableTemporary = true;
     Editable = false;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
    
     layout
     {

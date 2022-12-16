@@ -4,6 +4,8 @@ page 80031 "HL Reverse Apply Selections"
     PageType = List;
     SourceTable = Item;
     SourceTableTemporary = true;
+    PromotedActionCategoriesML = ENU = 'Healthy Life',
+                                 ENA = 'Healthy Life';
     layout
     {
         area(content)

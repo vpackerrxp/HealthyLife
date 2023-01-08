@@ -537,7 +537,7 @@ Codeunit 80002 "HL Import Export Routines"
                         If SkipCnt > 1 then begin
                             If StrLen(data) > 0 then begin
                                 Flds := data.Split(',');
-                                if Flds.Count = 41 then begin
+                                if Flds.Count = 42 then begin
                                     Clear(ChgFlg);
                                     If Not Item.Get(CopyStr(Flds.Get(1).ToUpper(), 1, 20)) then begin
                                         Item.init;
@@ -633,7 +633,7 @@ Codeunit 80002 "HL Import Export Routines"
                                     If (FLDs.Get(15).ToUpper() = 'INVENTORY') Or (Flds.Get(15).ToUpper() = 'CHILD') then 
                                     begin
                                         Item.Type := Item.Type::Inventory;
-                                        Clear(Item."Purchasing Blocked");
+//                                        Clear(Item."Purchasing Blocked");
                                     end
                                     else 
                                     begin
@@ -762,10 +762,10 @@ Codeunit 80002 "HL Import Export Routines"
                                         Item.Validate("Item Category Code", CopyStr(Flds.get(27), 1, 20));
                                         Item.Validate("Product Code", Copystr(Flds.Get(31), 1, 30));
                                         Item.Validate(Brand, Copystr(Flds.Get(32), 1, 30));
-                                        If Flds.Get(33).ToUpper() = 'YES' then
-                                            Item."Auto Delivery" := true
-                                        else
-                                            Item."Auto Delivery" := false;
+                                        Clear(Item."Auto Delivery");
+                                        Clear(Item."Purchasing Blocked");
+                                        If Flds.Get(33).ToUpper() = 'YES' then  Item."Auto Delivery" := true;
+                                        If Flds.Get(34).ToUpper() = 'YES' then  Item."Purchasing Blocked" := true
                                     end;    
                                     If (Flds.Get(15).ToUpper() = 'PARENT') Or (Flds.Get(15).ToUpper() = '') then begin
                                         If Flds.Get(28) = '' then
@@ -782,7 +782,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             Item.Validate("Price Includes VAT",GSTFlg);
                                     end;
                                     Item."Shopify Item" := Item."Shopify Item"::Shopify;
-                                    Dimval := CopyStr(Flds.Get(34).ToUpper(), 1, 20);
+                                    Dimval := CopyStr(Flds.Get(35).ToUpper(), 1, 20);
                                     If Dimval <> '' then begin
                                         If Not Dim.Get('DEPARTMENT', Dimval) then
                                             Error(StrsubStno('DEPARTMENT %1 does not exist as a dimenion value for item %2', DimVal, Item."No."));
@@ -802,7 +802,7 @@ Codeunit 80002 "HL Import Export Routines"
                                         If Dim.Get(DefDim."Dimension Code",DefDim."Dimension Value Code") then
                                             Item."Shopify Category Name" := Dim.Name;
                                     end;
-                                    DimVal := CopyStr(Flds.Get(35).ToUpper(), 1, 20);
+                                    DimVal := CopyStr(Flds.Get(36).ToUpper(), 1, 20);
                                     If DimVal <> '' then begin
                                         If Not Dim.Get('CATEGORY', DimVal) then
                                             Error(StrsubStno('CATEGORY %1 does not exist as a dimenion value for Item %2', DimVal, Item."No."));
@@ -820,7 +820,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             DefDim.insert;
                                         end;
                                     end;
-                                    Dimval := CopyStr(Flds.Get(36).ToUpper(), 1, 20);
+                                    Dimval := CopyStr(Flds.Get(37).ToUpper(), 1, 20);
                                     If DimVal <> '' then begin
                                         If Not Dim.Get('SUB-CATEGORY', DimVal) then
                                             Error(StrsubStno('SUB-CATEGORY %1 does not exist as a dimension value for Item %2', DimVal, Item."No."));
@@ -838,7 +838,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             DefDim.insert;
                                         end;
                                     end;
-                                    Dimval := CopyStr(Flds.Get(37).ToUpper(), 1, 20);
+                                    Dimval := CopyStr(Flds.Get(38).ToUpper(), 1, 20);
                                     If DimVal <> '' then begin
                                         If Not Dim.Get('BRAND', DimVal) then begin
                                             Dim.Init();
@@ -860,7 +860,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             DefDim.insert;
                                         end;
                                     end;
-                                    UOM := CopyStr(Flds.Get(38).ToUpper(), 1, 10);
+                                    UOM := CopyStr(Flds.Get(39).ToUpper(), 1, 10);
                                     If UOM <> '' then begin
                                         if Not unit.Get(UOM) then begin
                                             Unit.Init();
@@ -870,10 +870,10 @@ Codeunit 80002 "HL Import Export Routines"
                                             Commit;
                                         end;
                                     end;
-                                    If Flds.Get(39) = '' then
+                                    If Flds.Get(40) = '' then
                                         QtyPer := 0
                                     else
-                                        if Not Evaluate(QtyPer, Flds.Get(39)) then
+                                        if Not Evaluate(QtyPer, Flds.Get(40)) then
                                             Error(StrSubstNo('Numeric value expected for Item %1', Item."No."));
                                     If (UOM <> '') then begin
                                         If QtyPer > 0 then begin
@@ -905,7 +905,7 @@ Codeunit 80002 "HL Import Export Routines"
                                             end;
                                         end;
                                     end;
-                                    UOM := CopyStr(Flds.Get(40).ToUpper(), 1, 10);
+                                    UOM := CopyStr(Flds.Get(41).ToUpper(), 1, 10);
                                     If UOM <> '' then begin
                                         if Not unit.Get(UOM) then begin
                                             Unit.Init();
@@ -915,10 +915,10 @@ Codeunit 80002 "HL Import Export Routines"
                                             Commit;
                                         end;
                                     end;
-                                    If Flds.Get(41) = '' then
+                                    If Flds.Get(42) = '' then
                                         QtyPer := 0
                                     else
-                                        if Not Evaluate(QtyPer, Flds.Get(41)) then
+                                        if Not Evaluate(QtyPer, Flds.Get(42)) then
                                             Error(StrSubstNo('Numeric value expected for Item %1', Item."No."));
                                     If (UOM <> '') then begin
                                         If QtyPer > 0 then begin
@@ -965,7 +965,7 @@ Codeunit 80002 "HL Import Export Routines"
                                     Item.Modify(false);
                                 end
                                 else
-                                    Error(StrSubstNo('Field Count Does Not = 41 .. occured at Line Position %1 check for extra commas in the data', SkipCnt));
+                                    Error(StrSubstNo('Field Count Does Not = 42 .. occured at Line Position %1 check for extra commas in the data', SkipCnt));
                             end;
                         end;
                     end;
@@ -1034,7 +1034,7 @@ Codeunit 80002 "HL Import Export Routines"
                                     + ',Picking Sequence,HS Code,Type,Inventory Posting Group'
                                     + ',RRP,Selling Price,Vendor No.,Vendor Type,Vendor Item No.'
                                     + ',Unit Cost,Rebate Wholesale Cost,Gen. Prod. Posting Group,GST Prod. Posting Group,GTIN,Item Category Code,Shopify Title'
-                                    + ',Shopify Selling Option 1,GST Applies,Product Code,Brand,Auto Delivery,DEPT,CATEGORY,SUB CATEGORY,BRAND'
+                                    + ',Shopify Selling Option 1,GST Applies,Product Code,Brand,Auto Delivery,Purchase Blocked,DEPT,CATEGORY,SUB CATEGORY,BRAND'
                                     + ',UOM 1,QTYPER 1,UOM 2,QTYPER 2' + CRLF);
                 Item.Reset;
                 Case StrMenu('All Items,Parent Items,Child Items', 1) of
@@ -1091,10 +1091,8 @@ Codeunit 80002 "HL Import Export Routines"
                         OutStrm.Writetext(Format(Item."Price Includes VAT") + ',');
                         OutStrm.Writetext(Item."Product Code" + ',');
                         OutStrm.Writetext(Item.Brand + ',');
-                        If Item."Auto Delivery" then
-                            OutStrm.Writetext('YES,')
-                        else
-                            OutStrm.Writetext('NO,');
+                        OutStrm.Writetext(Format(Item."Auto Delivery") + ',');
+                        OutStrm.Writetext(Format(iTem."Purchasing Blocked") + ',');
                         if DefDim.Get(DataBase::Item, Item."No.", 'DEPARTMENT') then
                             OutStrm.Writetext(DefDim."Dimension Value code" + ',')
                         else
@@ -1165,10 +1163,8 @@ Codeunit 80002 "HL Import Export Routines"
                                 OutStrm.Writetext(Item."Shopify Selling Option 2".Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
                                 OutStrm.Writetext(Item."Product Code" + ',');
                                 OutStrm.Writetext(Item.Brand + ',');
-                                If Item."Auto Delivery" then
-                                    OutStrm.Writetext('YES,')
-                                else
-                                    OutStrm.Writetext('NO,');
+                                OutStrm.Writetext(Format(Item."Auto Delivery") + ',');
+                                OutStrm.Writetext(Format(ITem."Purchasing Blocked") + ',');
                                 if DefDim.Get(DataBase::Item, Item."No.", 'DEPARTMENT') then
                                     OutStrm.Writetext(DefDim."Dimension Value code" + ',')
                                 else
@@ -2894,4 +2890,85 @@ end;
             Until Item.Next = 0;
         end;            
     end;
+    procedure Import_Export_WholeSales_Costs()
+    var
+        Flds: list of [text];
+        Instrm: InStream;
+        OutStrm: OutStream;
+        FileName: Text;
+        Data: text;
+        SkipCnt: integer;
+        Win: Dialog;
+        Item: Record Item;
+        BlobTmp: COdeunit "Temp Blob";
+        CRLF: text[2];
+        TAB: Char;
+        PCat:record "HL Part Classification";
+   begin
+        Case StrMenu('Import Item Wholesale Costs,Export Item Wholesale Costs', 1) of
+            1:
+            Begin
+                if File.UploadIntoStream('Item Wholesale Costs Import', '', '', FileName, Instrm) then 
+                Begin
+                    If GuiAllowed then Win.Open('Importing Item #1##############');
+                    Clear(SkipCnt);
+                    While Not Instrm.EOS do 
+                    begin
+                        SkipCnt += 1;
+                        Instrm.ReadText(Data);
+                        If SkipCnt > 1 then 
+                        begin
+                            If StrLen(data) > 0 then 
+                            begin
+                                Flds := data.Split(',');
+                                if Flds.Count = 3 then 
+                                begin
+                                    If (Flds.Get(1) <> '') then 
+                                        If Item.Get(Flds.Get(1)) then
+                                            If Evaluate(Item."Rebate Wholesale Cost",Flds.Get(3)) then
+                                            begin
+                                                Item.Modify(false);
+                                                if GuiAllowed then Win.Update(1,Item."No.");
+                                            end    
+                                            else
+                                                Error('Item %1 has invalid Wholesale Rebate Cost',Item."No.");    
+                                end
+                                else
+                                    Error(StrSubstNo('Field Count Does Not = 3 .. occured at Line Position %1 check for extra commas in the data', SkipCnt));
+                            end;
+                        end;
+                    end;
+                    If GuiAllowed then win.Close();
+                end;
+            end;
+            2:
+            begin
+                If GuiAllowed then Win.Open('Exporting Item #1##############');
+                CRLF[1] := 13;
+                CRLF[2] := 10;
+                TAB := 9;
+                BlobTmp.CreateOutStream(OutStrm);
+                OutStrm.WriteText('Item No.,Description,Rebate Wholesale Cost' + CRLF);
+                Item.Reset;
+                Item.Setrange(Type, Item.Type::Inventory);
+                Item.Setrange("Shopify Item", Item."Shopify Item"::Shopify);
+                Item.Setfilter("No.",'SKU*');
+                if Item.findset then
+                repeat
+                    If GuiAllowed Then Win.update(1, Item."No.");
+                    OutStrm.WriteText(Item."No." + ',');
+                    OutStrm.WriteText(Item.Description.Replace(CRLF, '').Replace(TAB, '').Replace(',', ';') + ',');
+                    OutStrm.WriteText(Format(Item."Rebate Wholesale Cost",0,'<Precision,2><Standard Format,1>') + CRLF);
+                until Item.next = 0;
+                FileName := 'ItemWholesale.csv';
+                BlobTmp.CreateInStream(InStrm);
+                DownloadFromStream(Instrm, 'ItemExport', '', '', FileName);
+                If GuiAllowed then 
+                begin
+                    Message('File ItemWholesale.csv has been downloaded to your windows download folder');
+                    win.close;
+                end;
+            end;
+        end;
+   end;                   
 }

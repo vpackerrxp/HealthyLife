@@ -130,13 +130,15 @@ pageextension 80002 "HL Item List Ext" extends "Item List"
                     begin
                         Case StrMenu('Import/Export Shopify Items,Import/Export Parent/Child Shopify Items'
                                     + ',Import/Export Shopify BOM Items,Import/Export Item Changes'
-                                    + ',Import/Export MRP Items,Import/Export Item Classifications',1) of
+                                    + ',Import/Export MRP Items,Import/Export Item Classifications'
+                                    + ',Import/Export Item Wholesale Costs',1) of
                             1:CU.Build_Import_Export_Items();
                             2:Cu.Build_Import_Export_Item_Relations();
                             3:CU.Build_Import_Export_BOM();
                             4:CU.Build_Import_Export_Item_Changes();
                             5:CU.Build_MRP_Items();
                             6:CU.Build_Import_Export_Part_Classifications();
+                            7:CU.Import_Export_WholeSales_Costs();
                         end;
                     end;         
                 } 
